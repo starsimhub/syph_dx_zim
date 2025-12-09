@@ -27,7 +27,7 @@ FIGURES_DIR = 'figures'
 
 # Run settings
 debug = False  # If True, this will do smaller runs that can be run locally for debugging
-n_trials = [1000, 2][debug]  # How many trials to run for calibration
+n_trials = [100, 2][debug]  # How many trials to run for calibration
 n_workers = [100, 1][debug]    # How many cores to use
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     # Run calibration
     if do_run:
         sc.heading(f'Running calibration: {which}')
-        sim, calib = make_calibration(which, n_trials=1, n_workers=1)
+        sim, calib = make_calibration(which, n_trials=n_trials, n_workers=n_workers)
 
         if load_partial:
             # Load a partially-run calibration study
