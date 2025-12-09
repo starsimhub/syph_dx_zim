@@ -39,9 +39,7 @@ def plot_sims(df, dislist='all', which='single', **kwargs):
     if dislist == 'hiv':
         fig = plot_hiv_sims(df, which=which, **kwargs)
     elif dislist == 'all' and which == 'single':
-        fig = plot_coinfection(df, **kwargs)
-    elif dislist == 'all' and which == 'multi':
-        fig = plot_coinfection_quantiles(df, **kwargs)
+        fig = plot_coinfection(df, which=which, **kwargs)
     else:
         raise ValueError(f"Invalid combination: dislist='{dislist}', which='{which}'")
 
@@ -74,7 +72,7 @@ def plot_calibrations(dislist='hiv', **kwargs):
     # Generate plots
     if dislist == 'hiv':
         plot_hiv_sims(df_stats, **plot_kwargs)
-    elif dislist == 'all':
+    elif dislist == 'syph':
         plot_coinfection(df_stats, **plot_kwargs)
 
     # Print posterior parameter summaries
@@ -118,14 +116,12 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
     # Load data
     syph_data = pd.read_csv(f'{DATA_DIR}/{location}_syph_data.csv')
     hiv_data = pd.read_csv(f'{DATA_DIR}/{location}_hiv_data.csv')
-    projections_data = pd.read_csv(f'{DATA_DIR}/{location}_projections.csv')
-    gbd_estimates_new = pd.read_csv(f'{DATA_DIR}/{location}_gbd_estimates_new.csv')
+    # projections_data = pd.read_csv(f'{DATA_DIR}/{location}_projections.csv')
+    # gbd_estimates_new = pd.read_csv(f'{DATA_DIR}/{location}_gbd_estimates_new.csv')
 
     # Subset data to plotting years
-    syph_data = syph_data.loc[(syph_data.year >= start_year) & (syph_data.year <= end_year)]
-    hiv_data = hiv_data.loc[(hiv_data.year >= start_year) & (hiv_data.year <= end_year)]
-    projections_data = projections_data.loc[(projections_data.year >= start_year) & (projections_data.year <= end_year)]
-    gbd_estimates_new = gbd_estimates_new.loc[(gbd_estimates_new.year >= start_year) & (gbd_estimates_new.year <= end_year)]
+    syph_data = syph_data.loc[(syph_data.time >= start_year) & (syph_data.time <= end_year)]
+    hiv_data = hiv_data.loc[(hiv_data.time >= start_year) & (hiv_data.time <= end_year)]
 
     # Subset model results
     if which == 'single':
@@ -139,10 +135,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
 
     # Panel 1: Population size
     ax = axes[pn]
-    ax.scatter(hiv_data.year, hiv_data['n_alive'], color='k', label='UNAIDS')
-    if which == 'multi':
-        ax.scatter(gbd_estimates_new.year, gbd_estimates_new['n_alive'],
-                   color='darkviolet', alpha=0.6, label='GBD')
+    ax.scatter(hiv_data.time, hiv_data['n_alive'], color='k', label='UNAIDS')
     resname = 'n_alive'
     y = get_y(dfplot, which, resname)
     line, = ax.plot(x if which == 'single' else x[:-1],
@@ -182,8 +175,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax.plot(x, dfplot['syph.detected_pregnant_prevalence'] * 100,
                 label='ANC', alpha=alpha)
     else:  # multi
-        resnames = {'Active': 'syphilis_active_prevalence',
-                    'ANC': 'syphilis_detected_pregnant_prevalence'}
+        resnames = {'Active': 'syph.active_prevalence',
+                    'ANC': 'syph.detected_pregnant_prevalence'}
         for rlabel, rname in resnames.items():
             scale = 100 * 0.7  # Scaling factor
             y = dfplot[(rname, '50%')]
@@ -227,11 +220,9 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax = plot_single(ax, syph_data, dfplot, 'syph.new_infections',
                         'syph.new_infections', annualize=False)
     else:  # multi
-        resname = 'syphilis_new_infections'
-        ax.scatter(syph_data.year, syph_data['syphilis.new_infections'],
+        resname = 'syph.new_infections'
+        ax.scatter(syph_data.time, syph_data['syph.new_infections'],
                    label='Data', color='k')
-        ax.scatter(gbd_estimates_new.year, gbd_estimates_new['syphilis.new_infections'],
-                   color='darkviolet', alpha=0.6, label='GBD')
         y = dfplot[(resname, '50%')]
         line, = ax.plot(x[:-1], y[:-1], label='Model')
         for idx, percentile_pair in enumerate(percentile_pairs):
@@ -252,9 +243,9 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                         'syph.new_congenital', annualize=False, smooth=True)
         ax.set_title('Congenital syphilis cases')
     else:  # multi
-        resname = 'syphilis_cum_congenital'
-        ydata = syph_data['syphilis.cum_congenital'] - syph_data['syphilis.cum_congenital'].iloc[0]
-        ax.scatter(syph_data.year, ydata, label='Data', color='k')
+        resname = 'syph/cum_congenital'
+        ydata = syph_data['syph.cum_congenital'] - syph_data['syph.cum_congenital'].iloc[0]
+        ax.scatter(syph_data.time, ydata, label='Data', color='k')
         y = dfplot[(resname, '50%')].values
         y = y - y[0]
         line, = ax.plot(x, y, label='Model')
@@ -275,9 +266,9 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                         'syph.new_congenital_deaths', annualize=False, smooth=True)
         ax.set_title('Congenital syphilis deaths')
     else:  # multi
-        resname = 'syphilis_cum_congenital_deaths'
-        ydata = syph_data['syphilis.cum_congenital_deaths'] - syph_data['syphilis.cum_congenital_deaths'].iloc[0]
-        ax.scatter(syph_data.year, ydata, label='Data', color='k')
+        resname = 'syph.cum_congenital_deaths'
+        ydata = syph_data['syph.cum_congenital_deaths'] - syph_data['syph.cum_congenital_deaths'].iloc[0]
+        ax.scatter(syph_data.time, ydata, label='Data', color='k')
         y = dfplot[(resname, '50%')].values
         y = y - y[0]
         line, = ax.plot(x, y, label='Model')
@@ -298,7 +289,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax.text(0.5, 0.5, 'Treatments\n(multi-sim only)',
                 ha='center', va='center', transform=ax.transAxes)
     else:  # multi
-        resname = 'syphilis_new_treated'
+        resname = 'syph.new_treated'
         y = dfplot[(resname, '50%')]
         line, = ax.plot(x[:-1], y[:-1], label='Treatments')
         for idx, percentile_pair in enumerate(percentile_pairs):
@@ -318,7 +309,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax.text(0.5, 0.5, 'Overtreatment\n(multi-sim only)',
                 ha='center', va='center', transform=ax.transAxes)
     else:  # multi
-        resname = 'syphilis_new_treated_unnecessary'
+        resname = 'syph.new_treated_unnecessary'
         y = dfplot[(resname, '50%')]
         line, = ax.plot(x[:-1], y[:-1], label='Overtreatment')
         for idx, percentile_pair in enumerate(percentile_pairs):
@@ -338,12 +329,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                         'hiv.new_infections', annualize=False)
     else:  # multi
         resname = 'hiv_new_infections'
-        ax.scatter(hiv_data.year, hiv_data['hiv.new_infections'],
+        ax.scatter(hiv_data.time, hiv_data['hiv.new_infections'],
                    label='UNAIDS', color='k')
-        ax.scatter(projections_data.year, projections_data['hiv.new_infections'],
-                   label='GBD (old)', alpha=0.3, color='k')
-        ax.scatter(gbd_estimates_new.year, gbd_estimates_new['hiv.new_infections'],
-                   color='darkviolet', alpha=0.6, label='GBD (new)')
         y = dfplot[(resname, '50%')]
         line, = ax.plot(x[:-1], y[:-1], label='Model')
         for idx, percentile_pair in enumerate(percentile_pairs):
@@ -364,10 +351,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                         'hiv.new_deaths', annualize=False)
     else:  # multi
         resname = 'hiv_new_deaths'
-        ax.scatter(hiv_data.year, hiv_data['hiv.new_deaths'],
+        ax.scatter(hiv_data.time, hiv_data['hiv.new_deaths'],
                    label='UNAIDS', color='k')
-        ax.scatter(gbd_estimates_new.year, gbd_estimates_new['hiv.new_deaths'],
-                   color='darkviolet', alpha=0.6, label='GBD')
         y = dfplot[(resname, '50%')]
         line, = ax.plot(x[:-1], y[:-1], label='Model')
         for idx, percentile_pair in enumerate(percentile_pairs):
@@ -383,12 +368,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
 
     # Panel 11: People living with HIV (total, diagnosed, treated)
     ax = axes[pn]
-    ax.scatter(hiv_data.year, hiv_data['hiv.n_infected'], color='k')
-    if which == 'multi':
-        ax.scatter(projections_data.year, projections_data['hiv.n_infected'],
-                   alpha=0.3, color='k')
-        ax.scatter(gbd_estimates_new.year, gbd_estimates_new['hiv.n_infected'],
-                   color='darkviolet', alpha=0.6)
+    ax.scatter(hiv_data.time, hiv_data['hiv.n_infected'], color='k')
 
     if which == 'single':
         ax.plot(x, dfplot['hiv.n_infected'], label='PLHIV', alpha=alpha)
@@ -420,12 +400,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                 label='Model', alpha=alpha)
     else:  # multi
         resname = 'hiv_prevalence'
-        ax.scatter(hiv_data.year, hiv_data['hiv.prevalence'] * 100,
+        ax.scatter(hiv_data.time, hiv_data['hiv.prevalence'] * 100,
                    label='UNAIDS', color='k')
-        ax.scatter(projections_data.year, projections_data['hiv.prevalence'] * 100,
-                   label='GBD (old)', color='k', alpha=0.3)
-        ax.scatter(gbd_estimates_new.year, gbd_estimates_new['hiv.prevalence'] * 100,
-                   label='GBD (new)', color='darkviolet', alpha=0.6)
         y = dfplot[(resname, '50%')]
         line, = ax.plot(x, y * 100, label='Model')
         for idx, percentile_pair in enumerate(percentile_pairs):

@@ -64,6 +64,13 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
                 sres += dis+'.'+res+sk
     sres += ['hiv.n_diagnosed', 'hiv.n_on_art', 'n_alive']
 
+    if which == 'syph':
+        sres += [
+            'syph.detected_pregnant_prevalence',
+            'syph.new_treated',
+            'syph.new_treated_unnecessary'
+        ]
+
     # Make the sim
     dislist = which if which == 'hiv' else 'all'
     pre_load_calibs = ['hiv'] if which == 'syph' else None
