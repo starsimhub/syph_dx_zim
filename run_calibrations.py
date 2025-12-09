@@ -29,7 +29,6 @@ FIGURES_DIR = 'figures'
 TOTAL_TRIALS = 100
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
-study_name = 'syph_calibration'
 
 
 def make_calibration(which='hiv'):
@@ -86,9 +85,9 @@ def make_calibration(which='hiv'):
         weights=weights,
         sim=sim,
         data=data,
-        # study_name=f'{LOCATION}_{which}_calibration',
+        study_name=f'{LOCATION}_{which}_calibration',
         total_trials=TOTAL_TRIALS,
-        die=True, reseed=False, storage=storage, save_results=True,
+        die=False, reseed=False, storage=storage, save_results=True,
     )
 
     return sim, calib
