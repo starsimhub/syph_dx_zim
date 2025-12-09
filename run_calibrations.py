@@ -115,7 +115,7 @@ if __name__ == '__main__':
             calib.remove_db()
 
     else:
-        calib = run_calibration(dislist, calib, n_trials=n_trials)
+        calib = run_calibration(calib, dislist, n_trials=n_trials)
 
     print(f'... finished calibration: {dislist}')
     print(f'Best pars are {calib.best_pars}')
