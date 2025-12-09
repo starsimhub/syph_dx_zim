@@ -31,13 +31,13 @@ n_trials = [100, 2][debug]  # How many trials to run for calibration
 n_workers = [100, 1][debug]    # How many cores to use
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
-study_name = 'starsim_calibration'
+study_name = 'syph_calibration'
 
 
 def make_calibration(which='hiv', n_trials=None, n_workers=None):
 
     # Define the calibration parameters
-    ckw = dict()  #suggest_type='suggest_float'
+    ckw = dict(suggest_type='suggest_float')  #
     calib_par_dict = dict(
         hiv=dict(
             hiv_beta_m2f=dict(low=0.008, high=0.02, guess=0.012, **ckw),
