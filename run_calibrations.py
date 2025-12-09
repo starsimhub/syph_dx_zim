@@ -40,7 +40,7 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
     ckw = dict(suggest_type='suggest_float')
     calib_par_dict = dict(
         hiv=dict(
-            hiv_beta_m2f=dict(low=0.008, high=0.02, guess=0.012, **ckw, log=True),
+            hiv_beta_m2f=dict(low=0.008, high=0.02, guess=0.012, **ckw),
             hiv_eff_condom=dict(low=0.5, high=0.95, guess=0.75, **ckw),
             nw_prop_f0 = dict(low=0.55, high=0.9, guess=0.85, **ckw),
             nw_prop_m0 = dict(low=0.50, high=0.9, guess=0.81, **ckw),
@@ -49,7 +49,7 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
             nw_p_pair_form = dict(low=0.4, high=0.9, guess=0.5, **ckw),
         ),
         syph=dict(
-            syph_beta_m2f=dict(low=0.02, high=0.25, guess=0.08, **ckw, log=True),
+            syph_beta_m2f=dict(low=0.02, high=0.25, guess=0.08, **ckw),
         ),
     )
     calib_pars = calib_par_dict[which]
