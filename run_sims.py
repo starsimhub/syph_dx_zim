@@ -18,7 +18,7 @@ def make_sim_pars(sim, calib_pars):
     if not sim.initialized: sim.init()
     hiv = sim.diseases.hiv
     nw = sim.networks.structuredsexual
-    syph = sim.diseases.syph
+    if 'syph' in sim.diseases: syph = sim.diseases.syph
 
     # Apply the calibration parameters
     for k, pars in calib_pars.items():  # Loop over the calibration parameters
