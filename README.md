@@ -39,13 +39,12 @@ This study uses STIsim, an agent-based model of co-transmitting sexually transmi
 ### Data
 - `data/` - Input data for calibration
   - `zimbabwe_hiv_data.csv` - HIV prevalence, incidence, and mortality targets
-  - `zimbabwe_syphilis_data.csv` - Syphilis prevalence and symptomatic presentation rates
+  - `zimbabwe_syph_data.csv` - Syphilis prevalence and symptomatic presentation rates
   - Other demographic and behavioral data files
 
 ### Model Files
-- `hiv_model.py` - HIV-only transmission model
-- `syphilis_model.py` - Syphilis-only transmission model
-- `coinfection_model.py` - Main HIV-syphilis coinfection model
+- `diseases.py` - Transmission models for HIV, syphilis, and background GUD
+- `run_sims.py` - Construct main HIV-syphilis coinfection model and define run configs
 - `interventions.py` - Diagnostic intervention implementations
 - `analyzers.py` - Custom analyzers for tracking overtreatment and health outcomes
 - `utils.py` - Utility functions for data processing and plotting
@@ -56,37 +55,27 @@ The analysis proceeds in four sequential steps:
 
 #### Step 1: Calibrate HIV Model
 ```bash
-python run_hiv_calibration.py
+python run_calibrations.py
 ```
 Calibrates HIV prevalence, incidence, and mortality to match Zimbabwe data.
 
 **Outputs:**
-- `results/hiv_calib_stats.df`
-- `results/hiv_par_stats.df`
+- `results/zim_calib_stats_hiv.df`
+- `results/zim_par_stats_hiv.df`
 
 #### Step 2: Calibrate Syphilis Model
 ```bash
-python run_syph_calibration.py
+python run_calibrations.py
 ```
 Calibrates syphilis prevalence and symptomatic presentation rates.
 
 **Outputs:**
-- `results/syph_calib_stats.df`
-- `results/syph_par_stats.df`
+- `results/zim_calib_stats_syph.df`
+- `results/zim_par_stats_syph.df`
 
-#### Step 3: Calibrate Coinfection Model
+#### Step 3: Run Diagnostic Scenarios
 ```bash
-python run_coinfection_calibration.py
-```
-Calibrates interaction effects between HIV and syphilis, including increased transmission risk and altered disease progression.
-
-**Outputs:**
-- `results/coinf_calib_stats.df`
-- `results/coinf_par_stats.df`
-
-#### Step 4: Run Diagnostic Scenarios
-```bash
-python run_diagnostic_scenarios.py
+python run_scenarios.py
 ```
 Simulates baseline and intervention scenarios to quantify overtreatment reduction.
 
