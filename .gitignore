@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Results - keep structure but ignore large files
+results/*.msim
+results/*.obj
+results/*_full.df
+results/large_*
+
+# But keep smaller result files for quick reference
+!results/*_stats.df
+!results/*_summary.csv
+
+# Data - ignore large raw data files
+data/raw/
+data/*_raw.csv
+data/*.zip
+
+# Plots
+*.png
+*.jpg
+*.pdf
+*.svg
+# Except assets folder
+!assets/*.png
+!assets/*.jpg
+!assets/*.svg
+
+# Calibration files - these can be very large
+*_calibration_full.obj
+*_multirun.obj
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*~
