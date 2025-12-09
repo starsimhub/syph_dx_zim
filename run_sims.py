@@ -54,7 +54,7 @@ def make_sim_pars(sim, calib_pars):
     return sim
 
 
-def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyzers=None, use_calib=True, par_idx=0):
+def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyzers=None, pre_load_calibs=None, par_idx=0):
 
     # Network
     sexual = sti.StructuredSexual(
@@ -98,10 +98,12 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     sim.scenario = scenario
 
     # If using calibration parameters, update the simulation
-    if use_calib:
+    if pre_load_calibs is not None:
         calib_folder = 'results'
-        pars_df = sc.loadobj(f'{calib_folder}/zim_sti_pars.df')
-        calib_pars = pars_df.iloc[par_idx].to_dict()
+        calib_pars = {}
+        for disease in pre_load_calibs:
+            pars_df = sc.loadobj(f'{calib_folder}/zim_pars_{disease}.df')
+            calib_pars.update(pars_df.iloc[par_idx].to_dict())
         sim.init()
         sim = make_sim_pars(sim, calib_pars)
         print(f'Using calibration parameters for scenario {scenario} and index {par_idx}')
@@ -131,7 +133,7 @@ if __name__ == '__main__':
     if 'run_hiv' in to_run or 'run_stis' in to_run or 'run_all' in to_run:
         dislist = 'all' if 'run_all' in to_run else 'hiv' if 'run_hiv' in to_run else 'stis'
         if do_run:
-            sim = make_sim(dislist=dislist, stop=2040, seed=seed, scenario=scenario, use_calib=use_calib)
+            sim = make_sim(dislist=dislist, stop=2040, seed=seed, scenario=scenario, pre_load_calibs=None)
             print(f'Running sim for diseases: {dislist}')
             print('Initializing sim...')
             sim.init()

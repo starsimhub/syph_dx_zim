@@ -28,7 +28,7 @@ make_stats = True  # Whether to make stats
 study_name = 'starsim_calibration'
 
 
-def make_calibration(dislist='hiv', n_trials=None, n_workers=None):
+def make_calibration(which='hiv', n_trials=None, n_workers=None):
 
     # Define the calibration parameters
     ckw = dict(suggest_type='suggest_float')
@@ -42,11 +42,11 @@ def make_calibration(dislist='hiv', n_trials=None, n_workers=None):
             nw_m1_conc = dict(low=0.01, high=0.2, guess=0.01, **ckw),
             nw_p_pair_form = dict(low=0.4, high=0.9, guess=0.5, **ckw),
         ),
-        all=dict(
+        syph=dict(
             syph_beta_m2f=dict(low=0.02, high=0.25, guess=0.08, **ckw, log=True),
         ),
     )
-    calib_pars = calib_par_dict[dislist]
+    calib_pars = calib_par_dict[which]
 
     # Extra results to save
     sres = sc.autolist()
@@ -56,8 +56,10 @@ def make_calibration(dislist='hiv', n_trials=None, n_workers=None):
                 sres += dis+'.'+res+sk
 
     # Make the sim
-    sim = make_sim(use_calib=False, verbose=-1, seed=1)
-    data = pd.read_csv(f'data/zimbabwe_{dislist}_data.csv')
+    dislist = which if which == 'hiv' else 'all'
+    pre_load_calibs = ['hiv'] if which == 'syph' else None
+    sim = make_sim(dislist=dislist, pre_load_calibs=pre_load_calibs, verbose=-1, seed=1)
+    data = pd.read_csv(f'data/zimbabwe_{which}_data.csv')
 
     weights = dict(
     )
