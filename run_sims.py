@@ -103,16 +103,26 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     )
     sim.scenario = scenario
 
+    print('Created sim')
     if pre_load_calibs is not None:
         calib_folder = 'results'
         calib_pars = {}
         for disease in pre_load_calibs:
             pars_df = sc.loadobj(f'{calib_folder}/{LOCATION}_pars_{disease}.df')
-            calib_pars.update(pars_df.iloc[par_idx].to_dict())
+            print(f'Loaded calibration parameters for {disease} from {calib_folder}/{LOCATION}_pars_{disease}.df')
+            best_pars = pars_df.iloc[par_idx].to_dict()
+            print(best_pars)
+            calib_pars.update(best_pars)
         sim.init()
         sim = make_sim_pars(sim, calib_pars)
         print(f'Using calibration parameters for scenario {scenario} and index {par_idx}')
 
+        # Display pars from sim
+        for disease in pre_load_calibs:
+            print(f'\n{disease.upper()} parameters:')
+            for k, v in sim.diseases[disease].pars.items():
+                if k in best_pars:
+                    print(f'  {k}: {v} (calibrated)')
     return sim
 
 

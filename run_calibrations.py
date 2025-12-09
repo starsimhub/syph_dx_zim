@@ -50,6 +50,7 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
         ),
         syph=dict(
             syph_beta_m2f=dict(low=0.02, high=0.25, guess=0.08, **ckw),
+            syph_rel_trans_latent_half_life=dict(low=0.25, high=1., guess=0.5, **ckw),
         ),
     )
     calib_pars = calib_par_dict[which]
@@ -102,15 +103,15 @@ def run_calibration(calib, which='hiv', n_trials=None, do_save=False):
 
 if __name__ == '__main__':
 
-    load_partial = True
-    which = 'hiv'  # 'hiv' or 'all'
+    load_partial = False
+    which = 'syph'  # 'hiv' or 'syph'
     do_run = True
     make_stats = True  # Whether to make stats
 
     # Run calibration
     if do_run:
         sc.heading(f'Running calibration: {which}')
-        sim, calib = make_calibration(which, n_trials=n_trials, n_workers=n_workers)
+        sim, calib = make_calibration(which, n_trials=1, n_workers=1)
 
         if load_partial:
             # Load a partially-run calibration study
