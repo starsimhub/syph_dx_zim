@@ -79,13 +79,13 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
     return sim, calib
 
 
-def run_calibration(calib, dislist='hiv', n_trials=None, do_save=False):
+def run_calibration(calib, which='hiv', n_trials=None, do_save=False):
 
     # Run the calibration
-    printstr = f'Running calibration for {dislist}, {n_trials} trials'
+    printstr = f'Running calibration for {which}, {n_trials} trials'
     sc.heading(printstr)
     calib.calibrate()
-    if do_save: sc.saveobj(f'results/zim_calib_{dislist}.obj', calib)
+    if do_save: sc.saveobj(f'results/zim_calib_{which}.obj', calib)
     print(f'Best pars are {calib.best_pars}')
 
     return calib
@@ -94,10 +94,10 @@ def run_calibration(calib, dislist='hiv', n_trials=None, do_save=False):
 if __name__ == '__main__':
 
     load_partial = False
-    dislist = 'hiv'  # 'hiv' or 'all'
+    which = 'syph'  # 'hiv' or 'all'
 
-    sc.heading(f'Running calibration: {dislist}')
-    sim, calib = make_calibration(dislist, n_trials=n_trials, n_workers=n_workers)
+    sc.heading(f'Running calibration: {which}')
+    sim, calib = make_calibration(which, n_trials=n_trials, n_workers=n_workers)
 
     if load_partial:
         # Load a partially-run calibration study
@@ -117,31 +117,31 @@ if __name__ == '__main__':
             calib.remove_db()
 
     else:
-        calib = run_calibration(calib, dislist, n_trials=n_trials)
+        calib = run_calibration(calib, which, n_trials=n_trials)
 
-    print(f'... finished calibration: {dislist}')
+    print(f'... finished calibration: {which}')
     print(f'Best pars are {calib.best_pars}')
     resfolder = 'results/'  #if not constrain else 'results/constrained'  # NB constrained not in repo
 
     # Save the results
     print('Shrinking and saving...')
     if do_shrink:
-        sc.saveobj(f'{resfolder}/zim_calib_{dislist}_BIG.obj', calib)
+        sc.saveobj(f'{resfolder}/zim_calib_{which}_BIG.obj', calib)
         calib = calib.shrink(n_results=int(n_trials//10))  # Save 5% best results
-        sc.saveobj(f'{resfolder}/zim_calib_{dislist}.obj', calib)
+        sc.saveobj(f'{resfolder}/zim_calib_{which}.obj', calib)
     else:
-        sc.saveobj(f'{resfolder}/zim_calib_{dislist}.obj', calib)
+        sc.saveobj(f'{resfolder}/zim_calib_{which}.obj', calib)
     # Save the parameter dataframe
-    sc.saveobj(f'{resfolder}/zim_pars_{dislist}.df', calib.df)
+    sc.saveobj(f'{resfolder}/zim_pars_{which}.df', calib.df)
 
     if make_stats:
         print('Making stats...')
         from utils import percentiles
         df = calib.resdf
         df_stats = df.groupby(df.time).describe(percentiles=percentiles)
-        sc.saveobj(f'{resfolder}/zim_calib_stats_{dislist}.df', df_stats)
+        sc.saveobj(f'{resfolder}/zim_calib_stats_{which}.df', df_stats)
         par_stats = calib.df.describe(percentiles=[0.05, 0.95])
-        sc.saveobj(f'{resfolder}/zim_par_stats_{dislist}.df', par_stats)
+        sc.saveobj(f'{resfolder}/zim_par_stats_{which}.df', par_stats)
 
     print('Done!')
 
