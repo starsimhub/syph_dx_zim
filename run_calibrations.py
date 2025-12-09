@@ -53,7 +53,7 @@ def make_calibration(dislist='hiv', n_trials=None, n_workers=None):
     for dis in ['hiv', 'syph']:
         for res in ['prevalence', 'new_infections', 'n_infected']:
             for sk in ['', '_f']:
-                sres += dis+'_'+res+sk
+                sres += dis+'.'+res+sk
 
     # Make the sim
     sim = make_sim(use_calib=False, verbose=-1, seed=1)
