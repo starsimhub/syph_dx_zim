@@ -13,6 +13,12 @@ from diseases import make_diseases
 from interventions import make_interventions
 from analyzers import make_analyzers
 
+# Constants
+LOCATION = 'zimbabwe'
+DATA_DIR = 'data'
+RESULTS_DIR = 'results'
+FIGURES_DIR = 'figures'
+
 
 def make_sim_pars(sim, calib_pars):
     if not sim.initialized: sim.init()
@@ -88,7 +94,7 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     sim = sti.Sim(
         pars=simpars,
         datafolder='data/',
-        demographics='zimbabwe',
+        demographics=LOCATION.lower(),
         diseases=diseases,
         networks=networks,
         connectors=connectors,
@@ -97,12 +103,11 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     )
     sim.scenario = scenario
 
-    # If using calibration parameters, update the simulation
     if pre_load_calibs is not None:
         calib_folder = 'results'
         calib_pars = {}
         for disease in pre_load_calibs:
-            pars_df = sc.loadobj(f'{calib_folder}/zim_pars_{disease}.df')
+            pars_df = sc.loadobj(f'{calib_folder}/{LOCATION}_pars_{disease}.df')
             calib_pars.update(pars_df.iloc[par_idx].to_dict())
         sim.init()
         sim = make_sim_pars(sim, calib_pars)
@@ -119,14 +124,14 @@ if __name__ == '__main__':
     debug = False
     seed = 1
     do_save = True
-    do_run = False
+    do_run = True
     do_plot = True
     use_calib = False
     scenario = 'soc'
 
     to_run = [
-        # 'run_hiv',
-        'run_all',
+        'run_hiv',
+        # 'run_all',
         # 'run_msim',
     ]
 
@@ -136,7 +141,7 @@ if __name__ == '__main__':
             sim = make_sim(dislist=dislist, stop=2040, seed=seed, scenario=scenario, pre_load_calibs=None)
             print(f'Running sim for diseases: {dislist}')
             print('Initializing sim...')
-            sim.init()
+            if not sim.initialized: sim.init()
             print('Diseases in sim:', sim.diseases.keys())
             print('Analyzers in sim:', sim.analyzers.keys())
             sim.run()
