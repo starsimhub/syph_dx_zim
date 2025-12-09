@@ -51,7 +51,7 @@ class DualTest(sti.HIVTest):
         sim.diseases.hiv.diagnosed[pos_uids] = True
         sim.diseases.hiv.ti_diagnosed[pos_uids] = self.ti
 
-        if self.t.now('year') >= self.syph_start:
+        if self.t.now('year') >= self.syph_start and self.syph_test is not None:
             testers = (self.ti_tested == self.ti).uids
             if len(testers) > 0:
                 self.syph_test.ti_scheduled[testers] = self.ti
@@ -59,7 +59,7 @@ class DualTest(sti.HIVTest):
         return outcomes
 
 
-def get_testing_products():
+def get_testing_products(add_dual=False):
     """
     Define HIV products and testing interventions
     """
@@ -71,17 +71,20 @@ def get_testing_products():
     low_cd4_prob = np.concatenate([np.linspace(0, 0.85, n_years), np.linspace(0.85, 0.95, len(years) - n_years)])
     gp_prob = np.concatenate([np.linspace(0, 0.5, n_years), np.linspace(0.5, 0.6, len(years) - n_years)])
 
-    # Make syphilis test product
-    df = sc.dataframe.read_csv('data/syph_dx.csv')
-    dual_kp = sti.SyphDx(df[df.name == 'dual'], name=f'SyphDx_dual_kp')
+    if add_dual:
+        # Make syphilis test product
+        df = sc.dataframe.read_csv('data/syph_dx.csv')
+        dual_kp = sti.SyphDx(df[df.name == 'dual'], name=f'SyphDx_dual_kp')
 
-    dual_test = sti.STITest(
-        product=dual_kp,
-        eligibility=lambda sim: ss.uids(),  # This is set in the DualTest class
-        dt_scale=False,
-        name='dual_hiv',
-        label='dual_hiv',
-    )
+        dual_test = sti.STITest(
+            product=dual_kp,
+            eligibility=lambda sim: ss.uids(),  # This is set in the DualTest class
+            dt_scale=False,
+            name='dual_hiv',
+            label='dual_hiv',
+        )
+    else:
+        dual_test = None
 
     # FSW agents who haven't been diagnosed or treated yet
     def fsw_eligibility(sim):
@@ -121,24 +124,23 @@ def get_testing_products():
         label='low_cd4_testing',
         # syph_test=dual_test,
     )
+    tests = [fsw_testing, other_testing, low_cd4_testing]
+    if add_dual:
+        tests += [dual_test]
 
-    return fsw_testing, other_testing, low_cd4_testing, dual_test
+    return fsw_testing, other_testing, low_cd4_testing
 
 
-def make_hiv_intvs():
+def make_hiv_intvs(add_dual=False):
 
     n_art = pd.read_csv(f'data/n_art.csv').set_index('year')
     n_vmmc = pd.read_csv(f'data/n_vmmc.csv').set_index('year')
-    fsw_testing, other_testing, low_cd4_testing, dual_test = get_testing_products()
+    tests = get_testing_products(add_dual=add_dual)
     art = sti.ART(coverage_data=n_art)
     vmmc = sti.VMMC(coverage_data=n_vmmc)
     prep = sti.Prep()
 
-    interventions = [
-        fsw_testing,
-        other_testing,
-        low_cd4_testing,
-        dual_test,
+    interventions = tests + [
         art,
         vmmc,
         prep,
@@ -398,12 +400,17 @@ def make_interventions(which='all', scenario='soc'):
     interventions = sc.autolist()
 
     # HIV interventions
-    if which in ['all', 'hiv']:
-        hiv_intvs = make_hiv_intvs()
+    if which == 'all':
+        hiv_intvs = make_hiv_intvs(add_dual=True)
+        syph_intvs = make_syph_testing(scenario=scenario)
+        interventions += hiv_intvs + syph_intvs
+
+    elif which == 'hiv':
+        hiv_intvs = make_hiv_intvs(add_dual=False)
         interventions += hiv_intvs
 
     # Syphilis testing interventions
-    elif which in ['all', 'stis']:
+    elif which == 'stis':
         syph_intvs = make_syph_testing(scenario=scenario)
         interventions += syph_intvs
 

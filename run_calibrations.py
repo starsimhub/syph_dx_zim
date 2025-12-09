@@ -109,7 +109,7 @@ if __name__ == '__main__':
     # Run calibration
     if do_run:
         sc.heading(f'Running calibration: {which}')
-        sim, calib = make_calibration(which, n_trials=n_trials, n_workers=n_workers)
+        sim, calib = make_calibration(which, n_trials=1, n_workers=1)
 
         if load_partial:
             # Load a partially-run calibration study
