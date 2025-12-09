@@ -65,7 +65,9 @@ def make_calibration(which='hiv'):
         sres += [
             'syph.detected_pregnant_prevalence',
             'syph.new_treated',
-            'syph.new_treated_unnecessary'
+            'syph.new_treated_unnecessary',
+            'coinfection_stats.syph_prev_has_hiv',
+            'coinfection_stats.syph_prev_no_hiv',
         ]
 
     # Make the sim

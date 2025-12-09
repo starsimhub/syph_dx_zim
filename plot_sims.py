@@ -199,8 +199,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax.plot(x, dfplot['coinfection_stats.syph_prev_has_hiv'] * 100,
                 label='HIV+', alpha=alpha)
     else:  # multi
-        resnames = {'HIV−': 'coinfection_stats_syph_prev_no_hiv',
-                    'HIV+': 'coinfection_stats_syph_prev_has_hiv'}
+        resnames = {'HIV−': 'coinfection_stats.syph_prev_no_hiv',
+                    'HIV+': 'coinfection_stats.syph_prev_has_hiv'}
         for rlabel, rname in resnames.items():
             y = dfplot[(rname, '50%')]
             line, = ax.plot(x, y * 100, label=rlabel)
