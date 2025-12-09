@@ -75,7 +75,7 @@ def plot_calibrations(dislist='hiv', **kwargs):
     if dislist == 'hiv':
         plot_hiv_sims(df_stats, **plot_kwargs)
     elif dislist == 'all':
-        plot_coinfection_quantiles(df_stats, **plot_kwargs)
+        plot_coinfection(df_stats, **plot_kwargs)
 
     # Print posterior parameter summaries
     print(f'\n{dislist.upper()} Calibration - Posterior Parameter Estimates:')

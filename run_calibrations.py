@@ -104,9 +104,9 @@ if __name__ == '__main__':
 
     load_partial = False
     which = 'hiv'  # 'hiv' or 'all'
-    do_run = True
-    do_plot = False
-    make_stats = True  # Whether to make stats
+    do_run = False
+    do_plot = True
+    make_stats = False  # Whether to make stats
 
     # Run calibration
     if do_run:
