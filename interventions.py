@@ -403,7 +403,7 @@ def make_interventions(which='all', scenario='soc'):
         interventions += hiv_intvs
 
     # Syphilis testing interventions
-    if which in ['all', 'stis']:
+    elif which in ['all', 'stis']:
         syph_intvs = make_syph_testing(scenario=scenario)
         interventions += syph_intvs
 
