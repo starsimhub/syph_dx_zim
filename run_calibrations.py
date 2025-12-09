@@ -80,6 +80,7 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
         weights=weights,
         sim=sim,
         data=data,
+        study_name=f'{LOCATION}_{which}_calibration',
         total_trials=n_trials, n_workers=n_workers,
         die=True, reseed=False, storage=storage, save_results=True,
     )
