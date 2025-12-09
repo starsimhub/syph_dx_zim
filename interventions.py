@@ -128,7 +128,7 @@ def get_testing_products(add_dual=False):
     if add_dual:
         tests += [dual_test]
 
-    return fsw_testing, other_testing, low_cd4_testing
+    return tests
 
 
 def make_hiv_intvs(add_dual=False):
