@@ -3,7 +3,7 @@ import sciris as sc
 import pylab as pl
 import numpy as np
 import pandas as pd
-from utils import set_font, get_y
+from utils import set_font, get_y, plot_single
 
 location = 'zimbabwe'
 
