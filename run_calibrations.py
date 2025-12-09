@@ -15,13 +15,12 @@ os.environ.update(
 import sciris as sc
 import stisim as sti
 import pandas as pd
-import utils as ut
 from run_sims import make_sim, make_sim_pars
 
 
 # Run settings
 debug = False  # If True, this will do smaller runs that can be run locally for debugging
-n_trials = [1000, 2][debug]  # How many trials to run for calibration
+n_trials = [300, 2][debug]  # How many trials to run for calibration
 n_workers = [100, 1][debug]    # How many cores to use
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
