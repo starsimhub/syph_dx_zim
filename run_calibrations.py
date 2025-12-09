@@ -56,7 +56,7 @@ def make_calibration(dislist='hiv', n_trials=None, n_workers=None):
                 sres += dis+'_'+res+sk
 
     # Make the sim
-    sim = make_sim(use_calib=False, start=1990, stop=2040, verbose=-1, seed=1)
+    sim = make_sim(use_calib=False, verbose=-1, seed=1)
     data = pd.read_csv(f'data/zimbabwe_{dislist}_data.csv')
 
     weights = dict(
