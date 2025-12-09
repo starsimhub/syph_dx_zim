@@ -68,6 +68,9 @@ def make_calibration(which='hiv'):
             'syph.new_treated_unnecessary',
             'coinfection_stats.syph_prev_has_hiv',
             'coinfection_stats.syph_prev_no_hiv',
+            'hiv.new_deaths',
+            'hiv.new_infections',
+            'hiv.prevalence_15_49',
         ]
 
     # Make the sim

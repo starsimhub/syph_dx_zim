@@ -243,7 +243,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                         'syph.new_congenital', annualize=False, smooth=True)
         ax.set_title('Congenital syphilis cases')
     else:  # multi
-        resname = 'syph/cum_congenital'
+        resname = 'syph.cum_congenital'
         ydata = syph_data['syph.cum_congenital'] - syph_data['syph.cum_congenital'].iloc[0]
         ax.scatter(syph_data.time, ydata, label='Data', color='k')
         y = dfplot[(resname, '50%')].values
@@ -328,7 +328,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax = plot_single(ax, hiv_data, dfplot, 'hiv.new_infections',
                         'hiv.new_infections', annualize=False)
     else:  # multi
-        resname = 'hiv_new_infections'
+        resname = 'hiv.new_infections'
         ax.scatter(hiv_data.time, hiv_data['hiv.new_infections'],
                    label='UNAIDS', color='k')
         y = dfplot[(resname, '50%')]
@@ -350,16 +350,16 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax = plot_single(ax, hiv_data, dfplot, 'hiv.new_deaths',
                         'hiv.new_deaths', annualize=False)
     else:  # multi
-        resname = 'hiv_new_deaths'
+        resname = 'hiv.new_deaths'
         ax.scatter(hiv_data.time, hiv_data['hiv.new_deaths'],
                    label='UNAIDS', color='k')
-        y = dfplot[(resname, '50%')]
-        line, = ax.plot(x[:-1], y[:-1], label='Model')
-        for idx, percentile_pair in enumerate(percentile_pairs):
-            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
-            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
-            ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx],
-                           facecolor=line.get_color())
+        # y = dfplot[(resname, '50%')]
+        # line, = ax.plot(x[:-1], y[:-1], label='Model')
+        # for idx, percentile_pair in enumerate(percentile_pairs):
+        #     yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
+        #     yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
+        #     ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx],
+        #                    facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
     ax.set_title('HIV-related deaths')
     ax.set_ylim(bottom=0)
@@ -375,8 +375,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax.plot(x, dfplot['hiv.n_diagnosed'], label='Diagnosed', alpha=alpha)
         ax.plot(x, dfplot['hiv.n_on_art'], label='On ART', alpha=alpha)
     else:  # multi
-        resnames = {'Total': 'hiv_n_infected', 'Diagnosed': 'hiv_n_diagnosed',
-                    'On ART': 'hiv_n_on_art'}
+        resnames = {'Total': 'hiv.n_infected', 'Diagnosed': 'hiv.n_diagnosed',
+                    'On ART': 'hiv.n_on_art'}
         for rlabel, rname in resnames.items():
             y = dfplot[(rname, '50%')]
             line, = ax.plot(x[:-1], y[:-1], label=rlabel)
@@ -393,22 +393,18 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
 
     # Panel 12: HIV prevalence
     ax = axes[pn]
+    ax.scatter(hiv_data.time, hiv_data['hiv.prevalence_15_49'] * 100, color='k', label='UNAIDS')
     if which == 'single':
-        ax.scatter(hiv_data.time, hiv_data['hiv.prevalence_15_49'] * 100,
-                   color='k', label='UNAIDS')
-        ax.plot(x, dfplot['hiv.prevalence_15_49'] * 100,
-                label='Model', alpha=alpha)
+        ax.plot(x, dfplot['hiv.prevalence_15_49'] * 100, label='Model', alpha=alpha)
     else:  # multi
-        resname = 'hiv_prevalence'
-        ax.scatter(hiv_data.time, hiv_data['hiv.prevalence'] * 100,
-                   label='UNAIDS', color='k')
-        y = dfplot[(resname, '50%')]
-        line, = ax.plot(x, y * 100, label='Model')
-        for idx, percentile_pair in enumerate(percentile_pairs):
-            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
-            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
-            ax.fill_between(x, yl * 100, yu * 100, alpha=alphas[idx],
-                           facecolor=line.get_color())
+        resname = 'hiv.prevalence_15_49'
+        # y = dfplot[(resname, '50%')]
+        # line, = ax.plot(x, y * 100, label='Model')
+        # for idx, percentile_pair in enumerate(percentile_pairs):
+        #     yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
+        #     yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
+        #     ax.fill_between(x, yl * 100, yu * 100, alpha=alphas[idx],
+        #                    facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=8)
     ax.set_title('HIV prevalence (%)')
     ax.set_ylim(bottom=0)
