@@ -108,7 +108,7 @@ def run_calibration(calib, which='hiv', do_save=False):
 if __name__ == '__main__':
 
     load_partial = False
-    which = 'hiv'  # 'hiv' or 'syph'
+    which = 'syph'  # 'hiv' or 'syph'
     do_run = True
     make_stats = True  # Whether to make stats
 
