@@ -56,7 +56,8 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
 
     # Extra results to save
     sres = sc.autolist()
-    for dis in ['hiv', 'syph']:
+    savedis = ['hiv'] if which == 'hiv' else ['hiv', 'syph']
+    for dis in savedis:
         for res in ['prevalence', 'new_infections', 'n_infected']:
             for sk in ['', '_f']:
                 sres += dis+'.'+res+sk
