@@ -1,4 +1,4 @@
-,year,n_alive,syph.new_infections,syph.n_infected,syph.active_prevalence,syph.new_congenital_deaths,syph.new_congenital,syph.cum_congenital_deaths,syph.cum_congenital
+,time,n_alive,syph.new_infections,syph.n_infected,syph.active_prevalence,syph.new_congenital_deaths,syph.new_congenital,syph.cum_congenital_deaths,syph.cum_congenital
 0,1990,10137281.5,,,,900,2485.077812,900,2485.077812
 1,1991,10404815.5,,,,898.4375,2409.337258,1798.4375,4894.41507
 2,1992,10702699.5,,,,896.875,2320.520456,2695.3125,7214.935526

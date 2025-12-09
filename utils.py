@@ -24,9 +24,8 @@ def get_y(df, which, rname):
     return y
 
 
-
 def plot_single(ax, data, model, data_var_name, var_name, annualize=False, alpha=1, smooth=False):
-    ax.scatter(data.year, data[data_var_name], label='Data', color='k')
+    ax.scatter(data.time, data[data_var_name], label='Data', color='k')
     if annualize:
         x = np.unique(model['year'])
         y = model.groupby(by='year')[var_name].sum()
