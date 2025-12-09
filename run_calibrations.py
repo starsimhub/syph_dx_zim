@@ -102,7 +102,7 @@ def run_calibration(calib, which='hiv', n_trials=None, do_save=False):
 
 if __name__ == '__main__':
 
-    load_partial = False
+    load_partial = True
     which = 'hiv'  # 'hiv' or 'all'
     do_run = True
     make_stats = True  # Whether to make stats
@@ -119,7 +119,7 @@ if __name__ == '__main__':
             study = op.load_study(storage=calib.run_args.storage, study_name=calib.run_args.study_name)
             # calib.run_args.continue_db = True
             # calib.calibrate()
-            output = study.optimize(calib.run_trial, n_trials=2)
+            output = study.optimize(calib.run_trial, n_trials=28)
             calib.best_pars = sc.objdict(study.best_params)
             calib.parse_study(study)
             print('Best pars:', calib.best_pars)
