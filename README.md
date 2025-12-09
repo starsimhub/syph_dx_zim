@@ -31,7 +31,7 @@ This study uses STIsim, an agent-based model of co-transmitting sexually transmi
 
 3. Test the installation:
    ```bash
-   python coinfection_model.py
+   python run_sims.py
    ```
 
 ## Repository Structure
