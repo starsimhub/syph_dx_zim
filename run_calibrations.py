@@ -26,15 +26,13 @@ FIGURES_DIR = 'figures'
 
 
 # Run settings
-debug = False  # If True, this will do smaller runs that can be run locally for debugging
-n_trials = [100, 2][debug]  # How many trials to run for calibration
-n_workers = [100, 1][debug]    # How many cores to use
+TOTAL_TRIALS = 100
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
 study_name = 'syph_calibration'
 
 
-def make_calibration(which='hiv', n_trials=None, n_workers=None):
+def make_calibration(which='hiv'):
 
     # Define the calibration parameters
     ckw = dict(suggest_type='suggest_float')  #
@@ -89,18 +87,17 @@ def make_calibration(which='hiv', n_trials=None, n_workers=None):
         sim=sim,
         data=data,
         # study_name=f'{LOCATION}_{which}_calibration',
-        total_trials=n_trials,
-        # n_workers=n_workers,
+        total_trials=TOTAL_TRIALS,
         die=True, reseed=False, storage=storage, save_results=True,
     )
 
     return sim, calib
 
 
-def run_calibration(calib, which='hiv', n_trials=None, do_save=False):
+def run_calibration(calib, which='hiv', do_save=False):
 
     # Run the calibration
-    printstr = f'Running calibration for {which}, {n_trials} trials'
+    printstr = f'Running calibration for {which}, {TOTAL_TRIALS} trials'
     sc.heading(printstr)
     calib.calibrate()
     if do_save: sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj', calib)
@@ -119,7 +116,7 @@ if __name__ == '__main__':
     # Run calibration
     if do_run:
         sc.heading(f'Running calibration: {which}')
-        sim, calib = make_calibration(which, n_trials=n_trials, n_workers=n_workers)
+        sim, calib = make_calibration(which)
 
         if load_partial:
             # Load a partially-run calibration study
@@ -139,7 +136,7 @@ if __name__ == '__main__':
                 calib.remove_db()
 
         else:
-            calib = run_calibration(calib, which, n_trials=n_trials)
+            calib = run_calibration(calib, which)
 
         print(f'... finished calibration: {which}')
         print(f'Best pars are {calib.best_pars}')
@@ -148,7 +145,7 @@ if __name__ == '__main__':
         print('Shrinking and saving...')
         if do_shrink:
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}_BIG.obj', calib)
-            calib = calib.shrink(n_results=int(n_trials//10))  # Save 5% best results
+            calib = calib.shrink(n_results=int(TOTAL_TRIALS//10))  # Save 5% best results
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj', calib)
         else:
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj', calib)
