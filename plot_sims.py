@@ -87,7 +87,7 @@ def plot_coinfection(sim_output, location='zimbabwe', start_year=1970, title='sy
 
     # Congenital outcomes
     ax = axes[pn]
-    ax = plot_single(ax, syph_data, sim_output, 'syph.new_congenital_deaths', 'syph_new.congenital_deaths', annualize=False, smooth=True)
+    ax = plot_single(ax, syph_data, sim_output, 'syph.new_congenital_deaths', 'syph.new_congenital_deaths', annualize=False, smooth=True)
     ax.set_title('Congenital deaths')
     pn += 1
 
@@ -109,8 +109,8 @@ def plot_coinfection(sim_output, location='zimbabwe', start_year=1970, title='sy
 
     # HIV prevalence
     ax = axes[pn]
-    ax.scatter(hiv_data.year, hiv_data['hiv.prevalence'] * 100, color='k', label='UNAIDS')
-    y0 = sim_output['hiv.prevalence']
+    ax.scatter(hiv_data.year, hiv_data['hiv.prevalence_15_49'] * 100, color='k', label='UNAIDS')
+    y0 = sim_output['hiv.prevalence_15_49']
     ax.plot(x, y0 * 100, label='Modeled', alpha=alpha)
     ax.set_title('HIV prevalence 15-49 (%)')
     ax.legend(frameon=False)

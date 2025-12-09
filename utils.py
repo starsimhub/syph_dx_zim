@@ -25,7 +25,7 @@ def get_y(df, which, rname):
 
 
 
-def plot_single(ax, data, model, data_var_name, var_name, annualize=False, smooth=False):
+def plot_single(ax, data, model, data_var_name, var_name, annualize=False, alpha=1, smooth=False):
     ax.scatter(data.year, data[data_var_name], label='Data', color='k')
     if annualize:
         x = np.unique(model['year'])

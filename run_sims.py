@@ -18,6 +18,7 @@ def make_sim_pars(sim, calib_pars):
     if not sim.initialized: sim.init()
     hiv = sim.diseases.hiv
     nw = sim.networks.structuredsexual
+    syph = sim.diseases.syph
 
     # Apply the calibration parameters
     for k, pars in calib_pars.items():  # Loop over the calibration parameters
@@ -35,7 +36,10 @@ def make_sim_pars(sim, calib_pars):
         else:
             raise NotImplementedError(f'Parameter {k} not recognized')
 
-        if 'hiv_' in k:  # HIV parameters
+        if 'syph_' in k:  # Syphilis parameters
+            k = k.replace('syph_', '')  # Strip off indentifying part of parameter name
+            syph.pars[k] = v
+        elif 'hiv_' in k:  # HIV parameters
             k = k.replace('hiv_', '')  # Strip off indentifying part of parameter name
             hiv.pars[k] = v
         elif 'nw_' in k:  # Network parameters
