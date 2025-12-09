@@ -105,7 +105,6 @@ if __name__ == '__main__':
     load_partial = False
     which = 'hiv'  # 'hiv' or 'all'
     do_run = True
-    do_plot = False
     make_stats = True  # Whether to make stats
 
     # Run calibration
@@ -159,10 +158,6 @@ if __name__ == '__main__':
         sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_stats_{which}.df', df_stats)
         par_stats = calib.df.describe(percentiles=[0.05, 0.95])
         sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_par_stats_{which}.df', par_stats)
-
-    if do_plot:
-        from plot_sims import plot_calibrations
-        plot_calibrations(dislist=which, start_year=1990)
 
     print('Done!')
 
