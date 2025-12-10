@@ -199,7 +199,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
     resnames = {'Total burden': 'syph.n_infected',
                 'Active burden': 'syph.n_active'}
     for rlabel, resname in resnames.items():
-        ax.scatter(syph_data.time, syph_data[resname], label='GBD', color='k')
+        if resname == 'syph.n_infected': ax.scatter(syph_data.time, syph_data[resname], label='GBD', color='k')
         y = get_y(dfplot, which, resname)
         line, = ax.plot(x[:-1], y[:-1], label='Model')
         if which == 'multi':
@@ -215,9 +215,9 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         pn += 1
 
     # Panel 6-9: New infections, congenital syphilis cases
-    resnames = {'syph.new_infections': 'Syphilis infections',
-                'syph.new_congenital': 'Congenital syphilis cases',
-                'syph.new_congenital_deaths': 'Congenital syphilis deaths'}
+    resnames = {'Syphilis infections': 'syph.new_infections',
+                'Congenital syphilis cases': 'syph.new_congenital',
+                'Congenital syphilis deaths': 'syph.new_congenital_deaths'}
     for rlabel, resname in resnames.items():
         ax = axes[pn]
         ydata = syph_data[resname]
