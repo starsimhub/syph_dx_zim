@@ -122,14 +122,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
     hiv_data = hiv_data.loc[(hiv_data.time >= start_year) & (hiv_data.time <= end_year)]
 
     # Subset model results
-    dfplot = df.loc[(df.timevec >= start_year) & (df.timevec <= end_year)]
-    x = dfplot['timevec']
-    # if which == 'single':
-    #     dfplot = df.loc[(df.timevec >= start_year) & (df.timevec <= end_year)]
-    #     x = dfplot['timevec']
-    # else:  # multi
-    #     dfplot = df.iloc[(df.index >= start_year) & (df.index <= end_year)]
-    #     x = np.unique(dfplot.index)
+    dfplot = df.loc[(df.index >= start_year) & (df.index <= end_year)]  # If this fails, set the index to years
+    x = dfplot.index
 
     pn = 0
 
@@ -224,14 +218,14 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax = axes[pn]
         ydata = syph_data[resname]
         ax.scatter(syph_data.time, ydata, label='Data', color='k')
-        y = get_y(dfplot, which, resname).values
-        y = y - y[0]
-        line, = ax.plot(x, y, label='Model')
-        if which == 'multi':
-            for idx, percentile_pair in enumerate(percentile_pairs):
-                yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")].values
-                yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")].values
-                ax.fill_between(x, yl, yu, alpha=alphas[idx], facecolor=line.get_color())
+        # y = get_y(dfplot, which, resname).values
+        # y = y - y[0]
+        # line, = ax.plot(x, y, label='Model')
+        # if which == 'multi':
+        #     for idx, percentile_pair in enumerate(percentile_pairs):
+        #         yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")].values
+        #         yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")].values
+        #         ax.fill_between(x, yl, yu, alpha=alphas[idx], facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
         subtitle = 'CS cases' if resname == 'syph.new_congenital' else 'CS deaths'
         ax.set_title(f'{subtitle}, {start_year}–')

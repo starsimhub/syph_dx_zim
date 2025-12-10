@@ -70,6 +70,8 @@ def make_calibration(which='hiv'):
             'syph.detected_pregnant_prevalence',
             'syph.new_treated',
             'syph.new_treated_unnecessary',
+            'syph.new_congenital',
+            'syph.new_congenital_deaths',
             'coinfection_stats.syph_prev_has_hiv',
             'coinfection_stats.syph_prev_no_hiv',
         ]
