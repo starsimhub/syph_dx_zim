@@ -46,11 +46,15 @@ def make_calibration(which='hiv'):
             nw_p_pair_form = dict(low=0.4, high=0.9, guess=0.5, **ckw),
         ),
         syph=dict(
-            syph_beta_m2f=dict(low=0.02, high=0.25, guess=0.08, **ckw),
+            syph_beta_m2f=dict(low=0.02, high=0.9, guess=0.25, **ckw),
             syph_rel_trans_latent_half_life=dict(low=0.25, high=1., guess=0.5, **ckw),
         ),
     )
-    calib_pars = calib_par_dict[which]
+    if which != 'all': calib_pars = calib_par_dict[which]
+    else:
+        calib_pars = sc.objdict()
+        for k, v in calib_par_dict.items():
+            calib_pars.update(v)
 
     # Extra results to save
     sres = sc.autolist()
@@ -61,13 +65,17 @@ def make_calibration(which='hiv'):
                 sres += dis+'.'+res+sk
     sres += ['hiv.n_diagnosed', 'hiv.n_on_art', 'n_alive']
 
-    if which == 'syph':
+    if which in ['syph', 'all']:
         sres += [
             'syph.detected_pregnant_prevalence',
             'syph.new_treated',
             'syph.new_treated_unnecessary',
             'coinfection_stats.syph_prev_has_hiv',
             'coinfection_stats.syph_prev_no_hiv',
+        ]
+
+    if which == 'syph':
+        sres += [
             'hiv.new_deaths',
             'hiv.new_infections',
             'hiv.prevalence_15_49',
@@ -113,7 +121,7 @@ def run_calibration(calib, which='hiv', do_save=False):
 if __name__ == '__main__':
 
     load_partial = False
-    which = 'syph'  # 'hiv' or 'syph'
+    which = 'all'  # 'hiv' or 'syph'
     do_run = True
     make_stats = True  # Whether to make stats
 

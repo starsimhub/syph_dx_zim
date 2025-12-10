@@ -65,13 +65,14 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     # Network
     sexual = sti.StructuredSexual(
         prop_f0=0.6,
-        prop_f2=0.05,
+        prop_f2=0.1,  # 60% LR, 30% MR, 10% HR
         prop_m0=0.5,
-        f1_conc=0.05,
+        prop_m2=0.1,  # 50% LR, 50% MR, 10% HR
+        f1_conc=0.15,
         f2_conc=0.25,
         m1_conc=0.15,
-        m2_conc=0.3,
-        p_pair_form=0.6,
+        m2_conc=0.5,
+        p_pair_form=0.5,
         condom_data=pd.read_csv(f'data/condom_use.csv'),
     )
     maternal = ss.MaternalNet()
@@ -87,8 +88,7 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     analyzers = make_analyzers(which=dislist, extra_analyzers=analyzers)
 
     simpars = dict(
-        use_migration=True, rand_seed=seed, rel_death=0.99,
-        n_agents=10e3, start=start, stop=stop, verbose=verbose,
+        use_migration=False, rand_seed=seed, n_agents=10e3, start=start, stop=stop, verbose=verbose,
     )
 
     sim = sti.Sim(
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     do_save = True
     do_run = True
     do_plot = True
-    use_calib = True
+    use_calib = False
     scenario = 'soc'
 
     to_run = [
@@ -149,7 +149,7 @@ if __name__ == '__main__':
         dislist = 'all' if 'run_all' in to_run else 'hiv' if 'run_hiv' in to_run else 'stis'
         if do_run:
             pre_load_calibs = ['hiv'] if use_calib else None
-            sim = make_sim(dislist=dislist, stop=2031, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
+            sim = make_sim(dislist=dislist, stop=2000, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
             print(f'Running sim for diseases: {dislist}')
             print('Initializing sim...')
             if not sim.initialized: sim.init()
@@ -168,5 +168,5 @@ if __name__ == '__main__':
             from plot_sims import plot_sims
             df.index = df['timevec']
             title = 'hiv_plots' if dislist == 'hiv' else 'syph_plots'
-            plot_sims(df, dislist=dislist, which='single', start_year=1990, end_year=2025, title=title)
+            plot_sims(df, dislist=dislist, which='single', start_year=1985, end_year=2000, title=title)
 

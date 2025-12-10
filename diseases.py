@@ -14,7 +14,7 @@ def make_diseases(which='all'):
     diseases = sc.autolist()
     if which in ['all', 'hiv']:
         hiv = sti.HIV(
-            beta_m2f=0.035,
+            beta_m2f=0.02,
             eff_condom=0.85,
             init_prev_data=pd.read_csv('data/init_prev_hiv.csv'),
             rel_init_prev=8.,
@@ -23,7 +23,7 @@ def make_diseases(which='all'):
 
     if which in ['all', 'stis']:
         syph = sti.Syphilis(
-            beta_m2f=0.4,  # beta_m2f - use this if using latent logic
+            beta_m2f=0.9,
             beta_m2c=1.,
             eff_condom=0.5,
             rel_trans_latent_half_life=ss.years(.5),
