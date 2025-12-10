@@ -134,21 +134,22 @@ if __name__ == '__main__':
     debug = False
     seed = 1
     do_save = True
-    do_run = True
+    do_run = False
     do_plot = True
-    use_calib = False
+    use_calib = True
     scenario = 'soc'
 
     to_run = [
-        'run_hiv',
-        # 'run_all',
+        # 'run_hiv',
+        'run_all',
         # 'run_msim',
     ]
 
     if 'run_hiv' in to_run or 'run_stis' in to_run or 'run_all' in to_run:
         dislist = 'all' if 'run_all' in to_run else 'hiv' if 'run_hiv' in to_run else 'stis'
         if do_run:
-            sim = make_sim(dislist=dislist, stop=2040, seed=seed, scenario=scenario, pre_load_calibs=None)
+            pre_load_calibs = ['hiv'] if use_calib else None
+            sim = make_sim(dislist=dislist, stop=2040, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
             print(f'Running sim for diseases: {dislist}')
             print('Initializing sim...')
             if not sim.initialized: sim.init()
@@ -166,5 +167,6 @@ if __name__ == '__main__':
         if do_plot:
             from plot_sims import plot_sims
             df.index = df['timevec']
-            plot_sims(df, dislist=dislist, which='single', start_year=1985, title=f'{dislist}_plots')
+            title = 'hiv_plots' if dislist == 'hiv' else 'syph_plots'
+            plot_sims(df, dislist=dislist, which='single', start_year=1990, end_year=2025, title=title)
 
