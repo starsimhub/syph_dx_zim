@@ -353,13 +353,13 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         resname = 'hiv.new_deaths'
         ax.scatter(hiv_data.time, hiv_data['hiv.new_deaths'],
                    label='UNAIDS', color='k')
-        # y = dfplot[(resname, '50%')]
-        # line, = ax.plot(x[:-1], y[:-1], label='Model')
-        # for idx, percentile_pair in enumerate(percentile_pairs):
-        #     yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
-        #     yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
-        #     ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx],
-        #                    facecolor=line.get_color())
+        y = dfplot[(resname, '50%')]
+        line, = ax.plot(x[:-1], y[:-1], label='Model')
+        for idx, percentile_pair in enumerate(percentile_pairs):
+            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
+            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
+            ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx],
+                           facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
     ax.set_title('HIV-related deaths')
     ax.set_ylim(bottom=0)
@@ -398,13 +398,13 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax.plot(x, dfplot['hiv.prevalence_15_49'] * 100, label='Model', alpha=alpha)
     else:  # multi
         resname = 'hiv.prevalence_15_49'
-        # y = dfplot[(resname, '50%')]
-        # line, = ax.plot(x, y * 100, label='Model')
-        # for idx, percentile_pair in enumerate(percentile_pairs):
-        #     yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
-        #     yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
-        #     ax.fill_between(x, yl * 100, yu * 100, alpha=alphas[idx],
-        #                    facecolor=line.get_color())
+        y = dfplot[(resname, '50%')]
+        line, = ax.plot(x, y * 100, label='Model')
+        for idx, percentile_pair in enumerate(percentile_pairs):
+            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
+            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
+            ax.fill_between(x, yl * 100, yu * 100, alpha=alphas[idx],
+                           facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=8)
     ax.set_title('HIV prevalence (%)')
     ax.set_ylim(bottom=0)
