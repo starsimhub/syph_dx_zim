@@ -201,18 +201,17 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
     for rlabel, resname in resnames.items():
         if resname == 'syph.n_infected': ax.scatter(syph_data.time, syph_data[resname], label='GBD', color='k')
         y = get_y(dfplot, which, resname)
-        line, = ax.plot(x[:-1], y[:-1], label='Model')
+        line, = ax.plot(x[:-1], y[:-1], label=rlabel)
         if which == 'multi':
             for idx, percentile_pair in enumerate(percentile_pairs):
                 yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
                 yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
                 ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx], facecolor=line.get_color())
-        ax.legend(frameon=False, fontsize=10)
-        subtitle = rlabel
-        ax.set_title(subtitle)
-        ax.set_ylim(bottom=0)
-        sc.SIticks(ax)
-        pn += 1
+    ax.legend(frameon=False, fontsize=10)
+    ax.set_title('Syphilis burden')
+    ax.set_ylim(bottom=0)
+    sc.SIticks(ax)
+    pn += 1
 
     # Panel 6-9: New infections, congenital syphilis cases
     resnames = {'Syphilis infections': 'syph.new_infections',

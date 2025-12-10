@@ -26,7 +26,7 @@ FIGURES_DIR = 'figures'
 
 
 # Run settings
-TOTAL_TRIALS = 3000
+TOTAL_TRIALS = 1200
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
 
@@ -39,14 +39,15 @@ def make_calibration(which='hiv'):
         hiv=dict(
             hiv_beta_m2f=dict(low=0.008, high=0.02, guess=0.012, **ckw),
             hiv_eff_condom=dict(low=0.5, high=0.95, guess=0.75, **ckw),
-            nw_prop_f0 = dict(low=0.55, high=0.9, guess=0.85, **ckw),
-            nw_prop_m0 = dict(low=0.50, high=0.9, guess=0.81, **ckw),
-            nw_f1_conc = dict(low=0.01, high=0.2, guess=0.01, **ckw),
-            nw_m1_conc = dict(low=0.01, high=0.2, guess=0.01, **ckw),
-            nw_p_pair_form = dict(low=0.4, high=0.9, guess=0.5, **ckw),
+            # nw_prop_f0 = dict(low=0.55, high=0.9, guess=0.85, **ckw),
+            # nw_prop_m0 = dict(low=0.50, high=0.9, guess=0.81, **ckw),
+            # nw_f1_conc = dict(low=0.01, high=0.2, guess=0.01, **ckw),
+            # nw_m1_conc = dict(low=0.01, high=0.2, guess=0.01, **ckw),
+            # nw_p_pair_form = dict(low=0.4, high=0.9, guess=0.5, **ckw),
         ),
         syph=dict(
             syph_beta_m2f=dict(low=0.02, high=0.9, guess=0.25, **ckw),
+            syph_eff_condom=dict(low=0.2, high=0.9, guess=0.5, **ckw),
             syph_rel_trans_latent_half_life=dict(low=0.25, high=1., guess=0.5, **ckw),
         ),
     )
