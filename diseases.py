@@ -23,7 +23,7 @@ def make_diseases(which='all'):
 
     if which in ['all', 'stis']:
         syph = sti.Syphilis(
-            beta_m2f=0.09,  # beta_m2f - use this if using latent logic
+            beta_m2f=0.4,  # beta_m2f - use this if using latent logic
             beta_m2c=1.,
             eff_condom=0.5,
             rel_trans_latent_half_life=ss.years(.5),

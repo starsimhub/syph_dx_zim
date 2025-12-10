@@ -190,11 +190,11 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
     for rlabel, rname in resnames.items():
         y = get_y(dfplot, which, rname)
         line, = ax.plot(x, y * 100, label=rlabel)
-        for idx, percentile_pair in enumerate(percentile_pairs):
-            yl = dfplot[(rname, f"{percentile_pair[0]:.0%}")]
-            yu = dfplot[(rname, f"{percentile_pair[1]:.0%}")]
-            ax.fill_between(x, yl * 100, yu * 100, alpha=alphas[idx],
-                           facecolor=line.get_color())
+        if which == 'multi':
+            for idx, percentile_pair in enumerate(percentile_pairs):
+                yl = dfplot[(rname, f"{percentile_pair[0]:.0%}")]
+                yu = dfplot[(rname, f"{percentile_pair[1]:.0%}")]
+                ax.fill_between(x, yl * 100, yu * 100, alpha=alphas[idx], facecolor=line.get_color())
     ax.legend(frameon=False)
     ax.set_title('Syphilis prevalence\nby HIV status (%)')
     ax.set_ylim(bottom=0)
@@ -222,7 +222,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax = axes[pn]
         ydata = syph_data[resname] - syph_data[resname].iloc[0]
         ax.scatter(syph_data.time, ydata, label='Data', color='k')
-        y = get_y(dfplot, which, resname)
+        y = get_y(dfplot, which, resname).values
         y = y - y[0]
         line, = ax.plot(x, y, label='Model')
         if which == 'multi':
@@ -233,8 +233,8 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                 yu = yu - yu[0]
                 ax.fill_between(x, yl, yu, alpha=alphas[idx], facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
-        title = 'Cumulative CS cases' if resname == 'syph.cum_congenital' else 'Cumulative CS deaths'
-        ax.set_title(f'{title}, {start_year}–')
+        subtitle = 'Cumulative CS cases' if resname == 'syph.cum_congenital' else 'Cumulative CS deaths'
+        ax.set_title(f'{subtitle}, {start_year}–')
         ax.set_ylim(bottom=0)
         sc.SIticks(ax)
         pn += 1
@@ -260,11 +260,11 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         ax.scatter(hiv_data.time, hiv_data[resname], label='UNAIDS', color='k')
         y = get_y(dfplot, which, resname)
         line, = ax.plot(x[:-1], y[:-1], label='Model')
-        for idx, percentile_pair in enumerate(percentile_pairs):
-            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
-            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
-            ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx],
-                           facecolor=line.get_color())
+        if which == 'multi':
+            for idx, percentile_pair in enumerate(percentile_pairs):
+                yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")]
+                yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
+                ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx], facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=8)
         ax.set_title('HIV infections')
         ax.set_ylim(bottom=0)

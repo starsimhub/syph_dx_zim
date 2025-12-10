@@ -134,7 +134,7 @@ if __name__ == '__main__':
     debug = False
     seed = 1
     do_save = True
-    do_run = False
+    do_run = True
     do_plot = True
     use_calib = True
     scenario = 'soc'
@@ -149,7 +149,7 @@ if __name__ == '__main__':
         dislist = 'all' if 'run_all' in to_run else 'hiv' if 'run_hiv' in to_run else 'stis'
         if do_run:
             pre_load_calibs = ['hiv'] if use_calib else None
-            sim = make_sim(dislist=dislist, stop=2040, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
+            sim = make_sim(dislist=dislist, stop=2031, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
             print(f'Running sim for diseases: {dislist}')
             print('Initializing sim...')
             if not sim.initialized: sim.init()
