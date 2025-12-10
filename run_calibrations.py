@@ -26,7 +26,7 @@ FIGURES_DIR = 'figures'
 
 
 # Run settings
-TOTAL_TRIALS = 100
+TOTAL_TRIALS = 3000
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
 
@@ -89,8 +89,11 @@ def make_calibration(which='hiv'):
     sim = make_sim(dislist=dislist, pre_load_calibs=pre_load_calibs, verbose=-1, seed=1)
     data = pd.read_csv(f'data/{LOCATION}_{which}_data.csv')
 
-    weights = dict(
-    )
+    weights = {
+        'syph.n_infected':10.0,
+        'syph.new_infections':10.0,
+        'syph.active_prevalence':10.0,
+    }
 
     # Make the calibration
     calib = sti.Calibration(
