@@ -50,6 +50,11 @@ def make_calibration(which='hiv'):
             syph_eff_condom=dict(low=0.2, high=0.9, guess=0.5, **ckw),
             syph_rel_trans_latent_half_life=dict(low=0.25, high=1., guess=0.5, **ckw),
         ),
+        testing=dict(
+            rel_symp_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),
+            rel_anc_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),
+            rel_kp_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),
+        ),
     )
     if which != 'all': calib_pars = calib_par_dict[which]
     else:

@@ -236,7 +236,7 @@ def make_scen_specs(scenario):
     return scenspecs
 
 
-def make_syph_testing(scenario='soc'):
+def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     """
     Define the full testing algorithm for each scenario.
     Baseline:
@@ -255,8 +255,8 @@ def make_syph_testing(scenario='soc'):
         scenario = 'soc'
 
     symp_test_data = pd.read_csv('data/symp_test_prob_soc.csv')  # Risk group/sex/year-specific symptomatic testing
-    years = np.array([1990, 2025, 2041])
-    anc_test_data = np.array([0.1, 0.5, 0.9])
+    years = np.array([1980, 2025, 2041])
+    anc_test_data = np.array([0.1, 0.5, 0.5])*rel_anc_test  # ANC testing probabilities over time
 
     # Make scenario specifications - these determine which algorithm gets created and which tests get added
     scenspecs = make_scen_specs(scenario)
@@ -276,6 +276,7 @@ def make_syph_testing(scenario='soc'):
 
     # Determine how symptomatic people are managed
     symp_algo = sti.SyphTest(
+        rel_test=rel_symp_test,
         product=dxalgos[scenspecs.symp_algo],  # SOC prior to 2027.
         eligibility=all_symptomatic,
         test_prob_data=symp_test_data,
@@ -393,7 +394,7 @@ def make_syph_testing(scenario='soc'):
     return interventions
 
 
-def make_interventions(which='all', scenario='soc'):
+def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     """
     Make interventions for syphilis / HIV coinfection model
     """
@@ -402,7 +403,7 @@ def make_interventions(which='all', scenario='soc'):
     # HIV interventions
     if which == 'all':
         hiv_intvs = make_hiv_intvs(add_dual=True)
-        syph_intvs = make_syph_testing(scenario=scenario)
+        syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test)
         interventions += hiv_intvs + syph_intvs
 
     elif which == 'hiv':

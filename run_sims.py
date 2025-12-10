@@ -24,7 +24,11 @@ def make_sim_pars(sim, calib_pars):
     if not sim.initialized: sim.init()
     hiv = sim.diseases.hiv
     nw = sim.networks.structuredsexual
-    if 'syph' in sim.diseases: syph = sim.diseases.syph
+    if 'syph' in sim.diseases:
+        syph = sim.diseases.syph
+        symp_test = sim.interventions.symp_algo
+        anc_test = sim.interventions.anc_screen
+        kp_test = sim.interventions.dual_hiv
 
     # Apply the calibration parameters
     for k, pars in calib_pars.items():  # Loop over the calibration parameters
@@ -54,6 +58,12 @@ def make_sim_pars(sim, calib_pars):
                 nw.pars[k].set(v)
             else:
                 nw.pars[k] = v
+        elif k == 'rel_symp_test':
+            symp_test.pars['rel_test'] = v
+        elif k == 'rel_anc_test':
+            anc_test.pars['rel_test'] = v
+        elif k == 'rel_kp_test':
+            kp_test.pars['rel_test'] = v
         else:
             raise NotImplementedError(f'Parameter {k} not recognized')
 
@@ -82,7 +92,7 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     diseases, connectors = make_diseases(which=dislist)
 
     # Interventions
-    interventions = make_interventions(which=dislist, scenario=scenario)
+    interventions = make_interventions(which=dislist, scenario=scenario, rel_symp_test=1.2, rel_anc_test=1.1)
 
     # Analyzers
     analyzers = make_analyzers(which=dislist, extra_analyzers=analyzers)
@@ -149,7 +159,7 @@ if __name__ == '__main__':
         dislist = 'all' if 'run_all' in to_run else 'hiv' if 'run_hiv' in to_run else 'stis'
         if do_run:
             pre_load_calibs = ['hiv'] if use_calib else None
-            sim = make_sim(dislist=dislist, stop=2000, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
+            sim = make_sim(dislist=dislist, stop=2031, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
             print(f'Running sim for diseases: {dislist}')
             print('Initializing sim...')
             if not sim.initialized: sim.init()
@@ -168,5 +178,5 @@ if __name__ == '__main__':
             from plot_sims import plot_sims
             df.index = df['timevec']
             title = 'hiv_plots' if dislist == 'hiv' else 'syph_plots'
-            plot_sims(df, dislist=dislist, which='single', start_year=1985, end_year=2000, title=title)
+            plot_sims(df, dislist=dislist, which='single', start_year=1985, end_year=2031, title=title)
 
