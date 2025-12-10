@@ -72,7 +72,7 @@ def plot_calibrations(dislist='hiv', **kwargs):
     # Generate plots
     if dislist == 'hiv':
         plot_hiv_sims(df_stats, **plot_kwargs)
-    elif dislist == 'syph':
+    elif dislist in ['syph', 'all']:
         plot_coinfection(df_stats, **plot_kwargs)
 
     # Print posterior parameter summaries

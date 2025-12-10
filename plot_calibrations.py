@@ -4,7 +4,7 @@ Plot calibrations for the STI model
 
 if __name__ == '__main__':
 
-    which = 'syph'  # 'hiv' or 'all'
+    which = 'all'  # 'hiv' or 'all'
     from plot_sims import plot_calibrations
     plot_calibrations(dislist=which, start_year=1990)
 
