@@ -194,10 +194,11 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
     ax.set_ylim(bottom=0)
     pn += 1
 
-    # Panel 4-5: Syphilis burden and new infections
-    resnames = ['syph.n_infected', 'syph.new_infections']
-    for resname in resnames:
-        ax = axes[pn]
+    # Panel 4: Syphilis burden and active burden
+    ax = axes[pn]
+    resnames = {'Total burden': 'syph.n_infected',
+                'Active burden': 'syph.n_active'}
+    for rlabel, resname in resnames.items():
         ax.scatter(syph_data.time, syph_data[resname], label='GBD', color='k')
         y = get_y(dfplot, which, resname)
         line, = ax.plot(x[:-1], y[:-1], label='Model')
@@ -207,14 +208,17 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                 yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")]
                 ax.fill_between(x[:-1], yl[:-1], yu[:-1], alpha=alphas[idx], facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
-        subtitle = 'Syphilis burden' if resname == 'syph.n_infected' else 'New syphilis infections'
+        subtitle = rlabel
         ax.set_title(subtitle)
         ax.set_ylim(bottom=0)
         sc.SIticks(ax)
         pn += 1
 
-    # Panel 6-7: Cumulative congenital syphilis cases
-    for resname in ['syph.new_congenital', 'syph.new_congenital_deaths']:
+    # Panel 6-9: New infections, congenital syphilis cases
+    resnames = {'syph.new_infections': 'Syphilis infections',
+                'syph.new_congenital': 'Congenital syphilis cases',
+                'syph.new_congenital_deaths': 'Congenital syphilis deaths'}
+    for rlabel, resname in resnames.items():
         ax = axes[pn]
         ydata = syph_data[resname]
         ax.scatter(syph_data.time, ydata, label='Data', color='k')
@@ -226,8 +230,7 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
                 yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")].values
                 ax.fill_between(x, yl, yu, alpha=alphas[idx], facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
-        subtitle = 'CS cases' if resname == 'syph.new_congenital' else 'CS deaths'
-        ax.set_title(f'{subtitle}, {start_year}–')
+        ax.set_title(rlabel)
         ax.set_ylim(bottom=0)
         sc.SIticks(ax)
         pn += 1

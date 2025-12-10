@@ -68,6 +68,7 @@ def make_calibration(which='hiv'):
     if which in ['syph', 'all']:
         sres += [
             'syph.detected_pregnant_prevalence',
+            'syph.n_active',
             'syph.new_treated',
             'syph.new_treated_unnecessary',
             'syph.new_congenital',
