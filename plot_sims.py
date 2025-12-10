@@ -250,8 +250,10 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         y = y - y[0]
         line, = ax.plot(x, y, label='Model')
         for idx, percentile_pair in enumerate(percentile_pairs):
-            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")].values - y[0]
-            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")].values - y[0]
+            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")].values
+            yl = yl - yl[0]
+            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")].values
+            yu = yu - yu[0]
             ax.fill_between(x, yl, yu, alpha=alphas[idx], facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
         ax.set_title(f'Cumulative CS cases, {start_year}–')
@@ -273,8 +275,10 @@ def plot_coinfection(df, location=LOCATION, start_year=2000, end_year=2040,
         y = y - y[0]
         line, = ax.plot(x, y, label='Model')
         for idx, percentile_pair in enumerate(percentile_pairs):
-            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")].values - y[0]
-            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")].values - y[0]
+            yl = dfplot[(resname, f"{percentile_pair[0]:.0%}")].values
+            yl = yl - yl[0]
+            yu = dfplot[(resname, f"{percentile_pair[1]:.0%}")].values
+            yu = yu - yu[0]
             ax.fill_between(x, yl, yu, alpha=alphas[idx], facecolor=line.get_color())
         ax.legend(frameon=False, fontsize=10)
         ax.set_title(f'Cumulative CS deaths, {start_year}–')
