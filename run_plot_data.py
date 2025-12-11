@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # Settings
     sc.heading('Saving plot files')
 
-    sims = run_msim(scenan_pars=50, use_calib=False, seed=1, debug=False, do_save=False)
+    sims = run_msim(n_pars=50, use_calib=False, seed=1, debug=False, do_save=False)
     save_stats(sims)
 
     print('Done!')
