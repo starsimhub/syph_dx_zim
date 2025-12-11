@@ -153,11 +153,9 @@ def run_msim(pre_load_calibs=None, n_pars=1, seed=1, do_save=True):
     if do_save:
         dfs = sc.autolist()
         for sim in sims:
-            scenario = sim.scenario
             par_idx = sim.par_idx
             df = sim.to_df(resample='year', use_years=True, sep='.')
             df['res_no'] = par_idx
-            df['scenario'] = scenario
             dfs += df
         df = pd.concat(dfs)
         sc.saveobj(f'results/msim.df', df)
@@ -193,7 +191,6 @@ def save_stats(sims, resfolder='results'):
                         dd['active_prevalence'] = None
                     dd['disease'] = disease
                     dd['par_idx'] = par_idx
-                    dd['scenario'] = scenario
                     dfs += pd.DataFrame(dd)
     epi_df = pd.concat(dfs)
     sc.saveobj(f'{resfolder}/epi_df.df', epi_df)
@@ -224,7 +221,6 @@ if __name__ == '__main__':
     do_run = True
     do_plot = True
     use_calib = False
-    scenario = 'soc'
 
     to_run = [
         # 'run_hiv',
