@@ -136,13 +136,13 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     return sim
 
 
-def run_msim(use_calib=True, n_pars=1, seed=1, debug=False, do_save=True):
+def run_msim(use_calib=True, n_pars=1, seed=1, do_save=True):
 
     # Mave individual sims
     sims = sc.autolist()
 
     for par_idx in range(n_pars):
-        sim = make_sim(use_calib=use_calib, par_idx=par_idx, seed=seed, debug=debug, start=1990, stop=2026)
+        sim = make_sim(use_calib=use_calib, par_idx=par_idx, seed=seed, start=1990, stop=2026)
         if use_calib:
             print('Using calibration parameters:')
         sim.par_idx = par_idx
