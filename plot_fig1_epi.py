@@ -47,7 +47,7 @@ def plot_syph_prev_by_hiv(coinf_df, ax=None, start_year=2000):
     return ax
 
 
-def plot_infections_by_sex(coinf_df, ax=None, start_year=2000):
+def plot_infections_by_sex(epi_df, ax=None, start_year=2000):
     """Plot time series of annual new infections by sex for syphilis and HIV"""
     set_font(size=20)
     colors_syph = ['#d46e9c', '#8b4789']  # Pink/purple for syphilis
@@ -58,16 +58,21 @@ def plot_infections_by_sex(coinf_df, ax=None, start_year=2000):
     x = coinf_df.index[bi:]
 
     # Plot syphilis infections
-    ax.plot(x, coinf_df['new_infections_f_syphilis'][bi:],
-            color=colors_syph[0], label='Syphilis F', linewidth=2)
-    ax.plot(x, coinf_df['new_infections_m_syphilis'][bi:],
-            color=colors_syph[1], label='Syphilis M', linewidth=2, linestyle='--')
-
-    # Plot HIV infections
-    ax.plot(x, coinf_df['new_infections_f_hiv'][bi:],
-            color=colors_hiv[0], label='HIV F', linewidth=2)
-    ax.plot(x, coinf_df['new_infections_m_hiv'][bi:],
-            color=colors_hiv[1], label='HIV M', linewidth=2, linestyle='--')
+    # syph_df = epi_df.loc[(epi_df.disease == 'syph')].copy()
+    #     # sns.barplot(data=thisdf, x="age", y="new_infections", hue="sex", ax=ax, palette=scolors)
+    #     thisdf['prevalence'] *= 100
+    #     sns.barplot(data=thisdf, x="age", y="prevalence", hue="sex", ax=ax, palette=scolors)
+    #
+    # ax.plot(x, coinf_df['new_infections_f_syphilis'][bi:],
+    #         color=colors_syph[0], label='Syphilis F', linewidth=2)
+    # ax.plot(x, coinf_df['new_infections_m_syphilis'][bi:],
+    #         color=colors_syph[1], label='Syphilis M', linewidth=2, linestyle='--')
+    #
+    # # Plot HIV infections
+    # ax.plot(x, coinf_df['new_infections_f_hiv'][bi:],
+    #         color=colors_hiv[0], label='HIV F', linewidth=2)
+    # ax.plot(x, coinf_df['new_infections_m_hiv'][bi:],
+    #         color=colors_hiv[1], label='HIV M', linewidth=2, linestyle='--')
 
     ax.legend(frameon=False, ncol=2, fontsize=14)
     ax.set_ylabel('Annual infections')
@@ -152,8 +157,6 @@ def plot_infections_by_sw(sw_df, disease=None, ax=None, start_year=2000, end_yea
 # %% Run as script
 if __name__ == '__main__':
 
-    show = False
-
     # Load data files
     epi_df = sc.loadobj(f'results/epi_df.df')
     sw_df = sc.loadobj(f'results/sw_df.df')
@@ -200,8 +203,5 @@ if __name__ == '__main__':
     # Save figure
     figname = 'fig1_syph_hiv_epi'
     pl.savefig(f"figures/{figname}.png", dpi=100)
-
-    if show:
-        pl.show()
 
     print('Done.')

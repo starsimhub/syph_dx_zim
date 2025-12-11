@@ -195,6 +195,15 @@ def save_stats(sims, resfolder='results'):
     epi_df = pd.concat(dfs)
     sc.saveobj(f'{resfolder}/epi_df.df', epi_df)
 
+    # Save time series of syphilis and HIV infections and prevalence
+    ts_dfs = sc.autolist()
+    for sim in sims:
+        ts_df = sim.results.epi_ts.to_df(resample='year', use_years=True, sep='.')
+        ts_df['par_idx'] = sim.par_idx
+        ts_dfs += ts_df
+    ts_df = pd.concat(ts_dfs)
+    sc.saveobj(f'{resfolder}/epi_ts.df', ts_df)
+
     # Save SW stats
     sim = [sim for sim in sims if sim.par_idx == 0][0]
     sw_res = sim.results['sw_stats']

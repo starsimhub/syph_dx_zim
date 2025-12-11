@@ -134,11 +134,44 @@ class syph_hdalys(syph_dalys):
         return yld
 
 
+class epi_ts(ss.Analyzer):
+    """ Save epi results for plotting """
+    def __init__(self):
+        super().__init__()
+        return
+
+    def init_results(self):
+        super().init_results()
+        results = [
+            ss.Result('syph.new_infections_f', dtype=float),
+            ss.Result('syph.new_infections_m', dtype=float),
+            ss.Result('hiv.new_infections_f', dtype=float),
+            ss.Result('hiv.new_infections_m', dtype=float),
+        ]
+        self.define_results(*results)
+        return
+
+    def finalize(self):
+        sim = self.sim
+        syph_res = sim.results.syph
+        hiv_res = sim.results.hiv
+
+        # Syphilis stats
+        self.results['syph.new_infections_f'] = syph_res.new_infections_f
+        self.results['syph.new_infections_m'] = syph_res.new_infections_m
+        self.results['hiv.new_infections_f'] = hiv_res.new_infections_f
+        self.results['hiv.new_infections_m'] = hiv_res.new_infections_m
+
+        return
+
+
 def make_analyzers(which='all', extra_analyzers=None):
     analyzers = sc.autolist()
     if which in ['all', 'stis']:
         analyzers += [
-            sti.coinfection_stats('syph', 'hiv'),
+            sti.coinfection_stats('syph', 'hiv', name='coinfection_stats'),
+            sti.coinfection_stats('syph', 'hiv', disease1_infected_state_name='active', name='active_coinfection_stats'),
+            epi_ts(),
             sti.sw_stats(diseases=['syph', 'hiv']),
             syph_idalys(),
         ]
