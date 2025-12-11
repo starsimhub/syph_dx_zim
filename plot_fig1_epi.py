@@ -47,32 +47,40 @@ def plot_syph_prev_by_hiv(coinf_df, ax=None, start_year=2000):
     return ax
 
 
-def plot_infections_by_sex(epi_df, ax=None, start_year=2000):
+def plot_infections_by_sex(epi_ts, ax=None, start_year=2000, end_year=2026):
     """Plot time series of annual new infections by sex for syphilis and HIV"""
     set_font(size=20)
     colors_syph = ['#d46e9c', '#8b4789']  # Pink/purple for syphilis
     colors_hiv = ['#2f734a', '#1a4d2e']   # Green for HIV
 
+    from utils import percentiles, get_y
+    epi_ts_stats = epi_ts.groupby(epi_ts.index).describe(percentiles=percentiles)
+
     # Subset to start year
-    bi = sc.findfirst(coinf_df.index, start_year)
-    x = coinf_df.index[bi:]
+    epi_ts_stats = epi_ts_stats.loc[(epi_ts_stats.index >= start_year) & (epi_ts_stats.index <= end_year)]
+    x = epi_ts_stats.index
 
     # Plot syphilis infections
-    # syph_df = epi_df.loc[(epi_df.disease == 'syph')].copy()
-    #     # sns.barplot(data=thisdf, x="age", y="new_infections", hue="sex", ax=ax, palette=scolors)
-    #     thisdf['prevalence'] *= 100
-    #     sns.barplot(data=thisdf, x="age", y="prevalence", hue="sex", ax=ax, palette=scolors)
-    #
-    # ax.plot(x, coinf_df['new_infections_f_syphilis'][bi:],
-    #         color=colors_syph[0], label='Syphilis F', linewidth=2)
-    # ax.plot(x, coinf_df['new_infections_m_syphilis'][bi:],
-    #         color=colors_syph[1], label='Syphilis M', linewidth=2, linestyle='--')
-    #
-    # # Plot HIV infections
-    # ax.plot(x, coinf_df['new_infections_f_hiv'][bi:],
-    #         color=colors_hiv[0], label='HIV F', linewidth=2)
-    # ax.plot(x, coinf_df['new_infections_m_hiv'][bi:],
-    #         color=colors_hiv[1], label='HIV M', linewidth=2, linestyle='--')
+    rnames = {'syph.new_infections_f': 'Syphilis F', 'syph.new_infections_m': 'Syphilis M'}
+    rn = 0
+    for rname, rlabel in rnames.items():
+        y = epi_ts_stats[(rname, '50%')]
+        yl = epi_ts_stats[(rname, '10%')]
+        yu = epi_ts_stats[(rname, '90%')]
+        ax.plot(x, y, color=colors_syph[rn], label=rlabel, linewidth=2)
+        ax.fill_between(x, yl, yu, color=colors_syph[rn], alpha=0.3)
+        rn += 1
+
+    # Plot HIV infections
+    rnames = {'hiv.new_infections_f': 'HIV F', 'hiv.new_infections_m': 'HIV M'}
+    rn = 0
+    for rname, rlabel in rnames.items():
+        y = epi_ts_stats[(rname, '50%')]
+        yl = epi_ts_stats[(rname, '10%')]
+        yu = epi_ts_stats[(rname, '90%')]
+        ax.plot(x, y, color=colors_hiv[rn], label=rlabel, linewidth=2)
+        ax.fill_between(x, yl, yu, color=colors_hiv[rn], alpha=0.3)
+        rn += 1
 
     ax.legend(frameon=False, ncol=2, fontsize=14)
     ax.set_ylabel('Annual infections')
@@ -84,7 +92,7 @@ def plot_infections_by_sex(epi_df, ax=None, start_year=2000):
     return ax
 
 
-def plot_prevalence_by_age(epi_df, disease='syphilis', ax=None):
+def plot_prevalence_by_age(epi_df, disease='syph', ax=None):
     """Plot prevalence by age and sex"""
     set_font(size=20)
     scolors = ['#ee7989', '#4682b4']  # Pink for F, blue for M
@@ -158,9 +166,10 @@ def plot_infections_by_sw(sw_df, disease=None, ax=None, start_year=2000, end_yea
 if __name__ == '__main__':
 
     # Load data files
-    epi_df = sc.loadobj(f'results/epi_df.df')
-    sw_df = sc.loadobj(f'results/sw_df.df')
-    coinf_df = sc.loadobj(f'results/coinf_df.df')
+    epi_ts = sc.loadobj(f'results/epi_ts.df')  # For time series plots
+    epi_df = sc.loadobj(f'results/epi_df.df')  # For histograms
+    sw_df = sc.loadobj(f'results/sw_df.df')  # For sex work attribution plots
+    coinf_df = sc.loadobj(f'results/coinf_df.df')  # For coinfection plots
 
     # Initialize plot - 2x3 grid
     set_font(size=20)
@@ -174,15 +183,15 @@ if __name__ == '__main__':
 
     # Panel B: New infections by sex (time series)
     ax = fig.add_subplot(gs[0, 1])
-    plot_infections_by_sex(coinf_df, ax=ax, start_year=2000)
+    plot_infections_by_sex(epi_ts, ax=ax, start_year=2000)
 
-    # Panel C: Syphilis prevalence by age
+    # Panel C: Syphilis prevalence by age (histogram)
     ax = fig.add_subplot(gs[0, 2])
-    plot_prevalence_by_age(epi_df, disease='syphilis', ax=ax)
+    plot_prevalence_by_age(epi_df, disease='syph', ax=ax)
 
     # Panel D: Syphilis infections by sex work status
     ax = fig.add_subplot(gs[1, 0])
-    plot_infections_by_sw(sw_df, disease='syphilis', ax=ax)
+    plot_infections_by_sw(sw_df, disease='syph', ax=ax)
 
     # Panel E: HIV infections by sex work status
     ax = fig.add_subplot(gs[1, 1])

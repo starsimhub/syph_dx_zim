@@ -155,6 +155,7 @@ class epi_ts(ss.Analyzer):
         pass
 
     def finalize(self):
+        super().finalize()
         sim = self.sim
         syph_res = sim.results.syph
         hiv_res = sim.results.hiv
