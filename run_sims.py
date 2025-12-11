@@ -143,8 +143,8 @@ def run_msim(pre_load_calibs=None, n_pars=1, seed=1, do_save=True):
 
     for par_idx in range(n_pars):
         sim = make_sim(pre_load_calibs=pre_load_calibs, par_idx=par_idx, seed=seed, start=1990, stop=2026)
-        if use_calib:
-            print('Using calibration parameters:')
+        if pre_load_calibs is not None:
+            print(f'Using calibration parameters for {pre_load_calibs}')
         sim.par_idx = par_idx
         sims += sim
 
