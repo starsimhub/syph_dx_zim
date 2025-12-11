@@ -139,7 +139,7 @@ def make_analyzers(which='all', extra_analyzers=None):
     if which in ['all', 'stis']:
         analyzers += [
             sti.coinfection_stats('syph', 'hiv'),
-            sti.sw_stats(diseases=['syph']),
+            sti.sw_stats(diseases=['syph', 'hiv']),
             syph_idalys(),
         ]
     analyzers += sc.autolist(extra_analyzers)

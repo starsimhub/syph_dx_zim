@@ -136,6 +136,83 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     return sim
 
 
+def run_msim(use_calib=True, n_pars=1, seed=1, debug=False, do_save=True):
+
+    # Mave individual sims
+    sims = sc.autolist()
+
+    for par_idx in range(n_pars):
+        sim = make_sim(use_calib=use_calib, par_idx=par_idx, seed=seed, debug=debug, start=1990, stop=2026)
+        if use_calib:
+            print('Using calibration parameters:')
+        sim.par_idx = par_idx
+        sims += sim
+
+    sims = ss.parallel(sims).sims
+
+    if do_save:
+        dfs = sc.autolist()
+        for sim in sims:
+            scenario = sim.scenario
+            par_idx = sim.par_idx
+            df = sim.to_df(resample='year', use_years=True, sep='.')
+            df['res_no'] = par_idx
+            df['scenario'] = scenario
+            dfs += df
+        df = pd.concat(dfs)
+        sc.saveobj(f'results/msim.df', df)
+
+    return sims
+
+
+def save_stats(sims, resfolder='results'):
+
+    # Epi stats: save for all runs
+    dfs = sc.autolist()
+    for sim in sims:
+
+        par_idx = sim.par_idx
+
+        # Save age/sex epi results
+        age_bins = sim.diseases.syph.age_bins
+        sex_labels = {'f': 'Female', 'm': 'Male'}
+        for disease in ['syph', 'hiv']:
+            for sex in ['f', 'm']:
+                dd = dict()
+                for ab1, ab2 in zip(age_bins[:-1], age_bins[1:]):
+                    age = str(ab1) + '-' + str(ab2)
+                    if ab1 == 65:
+                        age = '65+'  # Combine the last two age groups
+                    dd['age'] = [age]
+                    dd['sex'] = sex_labels[sex]
+                    dd['prevalence'] = sim.results[disease][f'prevalence_{sex}_{ab1}_{ab2}'][-1]
+                    dd['new_infections'] = sim.results[disease][f'new_infections_{sex}_{ab1}_{ab2}'][-120:].mean()
+                    if disease == 'syph':
+                        dd['active_prevalence'] = sim.results[disease][f'active_prevalence_{sex}_{ab1}_{ab2}'][-1]
+                    else:
+                        dd['active_prevalence'] = None
+                    dd['disease'] = disease
+                    dd['par_idx'] = par_idx
+                    dd['scenario'] = scenario
+                    dfs += pd.DataFrame(dd)
+    epi_df = pd.concat(dfs)
+    sc.saveobj(f'{resfolder}/epi_df.df', epi_df)
+
+    # Save SW stats
+    sim = [sim for sim in sims if sim.par_idx == 0][0]
+    sw_res = sim.results['sw_stats']
+    sw_df = sw_res.to_df(resample='year', use_years=True, sep='.')
+    sc.saveobj(f'{resfolder}/sw_df.df', sw_df)
+
+    # Save HIV results
+    hiv_res = sim.results['coinfection_stats']
+    hiv_df = hiv_res.to_df(resample='year', use_years=True, sep='.')
+    hiv_df['timevec'] = df.timevec
+    sc.saveobj(f'{resfolder}/coinf_df.df', hiv_df)
+
+    return
+
+
 if __name__ == '__main__':
 
     # Set up and run
