@@ -151,6 +151,9 @@ class epi_ts(ss.Analyzer):
         self.define_results(*results)
         return
 
+    def step(self):
+        pass
+
     def finalize(self):
         sim = self.sim
         syph_res = sim.results.syph
