@@ -204,7 +204,6 @@ def save_stats(sims, resfolder='results'):
     # Save HIV results
     hiv_res = sim.results['coinfection_stats']
     hiv_df = hiv_res.to_df(resample='year', use_years=True, sep='.')
-    hiv_df['timevec'] = df.timevec
     sc.saveobj(f'{resfolder}/coinf_df.df', hiv_df)
 
     return
@@ -221,6 +220,7 @@ if __name__ == '__main__':
     do_run = True
     do_plot = True
     use_calib = False
+    scenario = 'soc'
 
     to_run = [
         # 'run_hiv',
