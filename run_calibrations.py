@@ -46,9 +46,9 @@ def make_calibration(which='hiv'):
             # nw_p_pair_form = dict(low=0.4, high=0.9, guess=0.5, **ckw),
         ),
         syph=dict(
-            syph_beta_m2f=dict(low=0.02, high=0.9, guess=0.25, **ckw),
-            syph_eff_condom=dict(low=0.2, high=0.9, guess=0.5, **ckw),
-            syph_rel_trans_latent_half_life=dict(low=0.25, high=1., guess=0.5, **ckw),
+            syph_beta_m2f=dict(low=0.05, high=0.3, guess=0.15, **ckw),
+            syph_eff_condom=dict(low=0.2, high=0.7, guess=0.5, **ckw),
+            syph_rel_trans_primary=dict(low=3, high=10, guess=5, **ckw),
         ),
         testing=dict(
             rel_symp_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),
@@ -73,6 +73,9 @@ def make_calibration(which='hiv'):
 
     if which in ['syph', 'all']:
         sres += [
+            'syph.active_prevalence',
+            'syph.active_prevalence_f',
+            'syph.active_prevalence_m',
             'syph.detected_pregnant_prevalence',
             'syph.n_active',
             'syph.new_treated',
@@ -102,7 +105,7 @@ def make_calibration(which='hiv'):
         'syph.active_prevalence':10.0,
     }
 
-    # Make the calibration
+    # Make the calibration — use continue_db and keep_db for HPC crash recovery
     calib = sti.Calibration(
         calib_pars=calib_pars,
         extra_results=sres,
@@ -113,6 +116,7 @@ def make_calibration(which='hiv'):
         study_name=f'{LOCATION}_{which}_calibration',
         total_trials=TOTAL_TRIALS,
         die=False, reseed=False, storage=storage, save_results=True,
+        continue_db=True, keep_db=True,
     )
 
     return sim, calib
@@ -132,35 +136,14 @@ def run_calibration(calib, which='hiv', do_save=False):
 
 if __name__ == '__main__':
 
-    load_partial = True
-    which = 'all'  # 'hiv' or 'syph'
+    which = 'all'  # 'hiv', 'syph', or 'all'
     do_run = True
-    make_stats = True  # Whether to make stats
+    make_stats = True
 
-    # Run calibration
+    # Run calibration — with continue_db=True, this will resume from any previous run
     if do_run:
-        sc.heading(f'Running calibration: {which}')
         sim, calib = make_calibration(which)
-
-        if load_partial:
-            # Load a partially-run calibration study
-            import optuna as op
-            print(calib.run_args.study_name)
-            study = op.load_study(storage=calib.run_args.storage, study_name=calib.run_args.study_name)
-            # calib.run_args.continue_db = True
-            # calib.calibrate()
-            output = study.optimize(calib.run_trial, n_trials=19)
-            calib.best_pars = sc.objdict(study.best_params)
-            calib.parse_study(study)
-            print('Best pars:', calib.best_pars)
-
-            # Tidy up
-            calib.calibrated = True
-            if not calib.run_args.keep_db:
-                calib.remove_db()
-
-        else:
-            calib = run_calibration(calib, which)
+        calib = run_calibration(calib, which)
 
         print(f'... finished calibration: {which}')
         print(f'Best pars are {calib.best_pars}')
@@ -169,12 +152,11 @@ if __name__ == '__main__':
         print('Shrinking and saving...')
         if do_shrink:
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}_BIG.obj', calib)
-            calib = calib.shrink(n_results=int(TOTAL_TRIALS//10))  # Save 5% best results
+            calib = calib.shrink(n_results=int(TOTAL_TRIALS//10))
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj', calib)
         else:
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj', calib)
 
-        # Save the parameter dataframe
         sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_pars_{which}.df', calib.df)
 
     else:

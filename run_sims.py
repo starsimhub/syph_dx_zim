@@ -33,7 +33,7 @@ def make_sim_pars(sim, calib_pars):
     # Apply the calibration parameters
     for k, pars in calib_pars.items():  # Loop over the calibration parameters
         if k == 'rand_seed':
-            sim.pars.rand_seed = v
+            sim.pars.rand_seed = pars
             continue
 
         elif k in ['index', 'mismatch']:
@@ -84,6 +84,8 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
         m2_conc=0.5,
         p_pair_form=0.5,
         condom_data=pd.read_csv(f'data/condom_use.csv'),
+        fsw_shares=ss.bernoulli(p=0.10),
+        client_shares=ss.bernoulli(p=0.20),
     )
     maternal = ss.MaternalNet()
     networks = [sexual, maternal]

@@ -23,10 +23,13 @@ def make_diseases(which='all'):
 
     if which in ['all', 'stis']:
         syph = sti.Syphilis(
-            beta_m2f=0.3,
+            beta_m2f=0.15,
             beta_m2c=1.,
             eff_condom=0.5,
-            rel_trans_latent_half_life=ss.years(1),
+            rel_trans_primary=5,                      # High: primary drives ~50-60% of transmission
+            rel_trans_secondary=1,                    # Moderate: ~25-30% of transmission
+            rel_trans_latent=0.1,                     # Low baseline, decays exponentially
+            rel_trans_latent_half_life=ss.months(6),  # Faster decay than default 1yr
             anc_detection=1.,
             rel_init_prev=0.2,
             init_prev_data=pd.read_csv('data/init_prev_syph.csv'),

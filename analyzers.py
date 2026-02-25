@@ -169,6 +169,34 @@ class epi_ts(ss.Analyzer):
         return
 
 
+class transmission_by_stage(ss.Analyzer):
+    """ Track which disease stage (primary/secondary/early/late/tertiary) each transmission comes from """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = 'transmission_by_stage'
+        self.stages = ['primary', 'secondary', 'early', 'late', 'tertiary']
+        self.transmission_modes = ['sex', 'mtc']
+
+    def init_results(self):
+        results = sc.autolist()
+        for tm in self.transmission_modes:
+            for stage in self.stages:
+                results += ss.Result(f'new_{tm}_{stage}', dtype=int, scale=True)
+        self.define_results(*results)
+
+    def step(self):
+        sim = self.sim
+        ti = self.ti
+        syph = sim.diseases.syph
+        new_trans = dict(
+            sex=syph.ti_transmitted_sex == ti,
+            mtc=syph.ti_transmitted_mtc == ti,
+        )
+        for tm in self.transmission_modes:
+            for stage in self.stages:
+                self.results[f'new_{tm}_{stage}'][ti] += count(new_trans[tm] & getattr(syph, stage))
+
+
 def make_analyzers(which='all', extra_analyzers=None):
     analyzers = sc.autolist()
     if which in ['all', 'stis']:
@@ -178,6 +206,7 @@ def make_analyzers(which='all', extra_analyzers=None):
             epi_ts(),
             sti.sw_stats(diseases=['syph', 'hiv']),
             syph_idalys(),
+            transmission_by_stage(),
         ]
     analyzers += sc.autolist(extra_analyzers)
     return analyzers

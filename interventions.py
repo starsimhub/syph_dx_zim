@@ -178,8 +178,8 @@ class pregnancy_risk_reduction(ss.Intervention):
         self.ever_rg2[:] = self.ever_rg2[:] | (self.sim.networks.structuredsexual.risk_group == 2)
         self.default_concurrency[:] = np.maximum(self.sim.networks.structuredsexual.concurrency, self.default_concurrency)
 
-        # Reset sexual preferences for those who are postpartum
-        is_postpartum = self.sim.demographics.pregnancy.postpartum & ~self.sim.demographics.pregnancy.pregnant
+        # Reset sexual preferences for those who are postpartum (breastfeeding and no longer pregnant)
+        is_postpartum = self.sim.demographics.pregnancy.breastfeeding & ~self.sim.demographics.pregnancy.pregnant
         postpartum_fsw = self.ever_fsw & is_postpartum
         postpartum_rg2 = self.ever_rg2 & is_postpartum
         self.sim.networks.structuredsexual.fsw[postpartum_fsw] = True
@@ -268,24 +268,43 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     dxalgos = load_syph_products()
 
     ####################################################
-    # Make symptomatic screening algorithms
+    # Make GUD screening algorithms (primary-stage ulcers)
     ####################################################
-    def all_symptomatic(sim):
-        testers = (sim.diseases.syph.primary | sim.diseases.gud.symptomatic)
+    def all_ulcerative(sim):
+        # Only primary-stage visible chancres + background GUD
+        testers = (sim.diseases.syph.ulcerative | sim.diseases.gud.symptomatic)
         return testers.uids
 
-    # Determine how symptomatic people are managed
+    # GUD syndromic management algorithm
     symp_algo = sti.SyphTest(
         rel_test=rel_symp_test,
-        product=dxalgos[scenspecs.symp_algo],  # SOC prior to 2027.
-        eligibility=all_symptomatic,
+        product=dxalgos[scenspecs.symp_algo],
+        eligibility=all_ulcerative,
         test_prob_data=symp_test_data,
         dt_scale=False,
         name='symp_algo',
         label='symp_algo',
     )
 
-    interventions += symp_algo
+    ####################################################
+    # Make secondary rash screening algorithm
+    ####################################################
+    def secondary_symptomatic(sim):
+        # People with visible secondary syphilis rash seeking care
+        return (sim.diseases.syph.rash_visible & sim.diseases.syph.secondary).uids
+
+    # Secondary rash: assume treponemal RDT for people presenting with rash
+    secondary_algo = sti.SyphTest(
+        rel_test=rel_symp_test,
+        product=dxprods['dual'],  # Treponemal RDT for secondary rash presentations
+        eligibility=secondary_symptomatic,
+        test_prob_data=symp_test_data,
+        dt_scale=False,
+        name='secondary_algo',
+        label='secondary_algo',
+    )
+
+    interventions += [symp_algo, secondary_algo]
 
     ####################################################
     # Make ANC screening algorithms
@@ -366,8 +385,8 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         p3 = sim.interventions['gud_test'].outcomes['positive'] == sim.interventions['gud_test'].ti
         p4 = sim.interventions['confirm'].outcomes['positive'] == sim.interventions['confirm'].ti
         p5 = sim.diseases.syph.tertiary
-        # to_treat = ( p2 | p3 ).uids
-        to_treat = (p1 | p2 | p3 | p4 | p5).uids
+        p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
+        to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
         return to_treat
 
     treat = sti.SyphTx(
