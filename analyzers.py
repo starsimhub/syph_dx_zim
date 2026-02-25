@@ -178,6 +178,7 @@ class transmission_by_stage(ss.Analyzer):
         self.transmission_modes = ['sex', 'mtc']
 
     def init_results(self):
+        super().init_results()
         results = sc.autolist()
         for tm in self.transmission_modes:
             for stage in self.stages:
