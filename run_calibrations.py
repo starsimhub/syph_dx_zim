@@ -137,7 +137,7 @@ def run_calibration(calib, which='hiv', do_save=False):
 if __name__ == '__main__':
 
     which = 'all'  # 'hiv', 'syph', or 'all'
-    do_run = True
+    do_run = False
     make_stats = True
 
     # Run calibration — with continue_db=True, this will resume from any previous run
@@ -149,6 +149,9 @@ if __name__ == '__main__':
         print(f'Best pars are {calib.best_pars}')
 
         # Save the results
+        # Clean up the database now that results are saved
+        calib.remove_db()
+
         print('Shrinking and saving...')
         if do_shrink:
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}_BIG.obj', calib)
@@ -158,9 +161,6 @@ if __name__ == '__main__':
             sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj', calib)
 
         sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_pars_{which}.df', calib.df)
-
-        # Clean up the database now that results are saved
-        calib.remove_db()
 
     else:
         calib = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj')
