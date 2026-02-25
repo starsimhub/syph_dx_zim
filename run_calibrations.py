@@ -159,6 +159,9 @@ if __name__ == '__main__':
 
         sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_pars_{which}.df', calib.df)
 
+        # Clean up the database now that results are saved
+        calib.remove_db()
+
     else:
         calib = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_calib_{which}.obj')
 
