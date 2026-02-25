@@ -29,6 +29,26 @@ def _extract_value(pars):
     return None
 
 
+def _get_disease(sim, name):
+    """ Get a disease module by name, works both before and after sim.init() """
+    if sim.initialized:
+        return sim.diseases[name]
+    for d in sim.pars.diseases:
+        if d.name == name:
+            return d
+    return None
+
+
+def _get_network(sim, name):
+    """ Get a network by name, works both before and after sim.init() """
+    if sim.initialized:
+        return sim.networks[name]
+    for n in sim.pars.networks:
+        if n.name == name:
+            return n
+    return None
+
+
 def make_sim_pars(sim, calib_pars):
     # Set disease/network pars BEFORE init (needed for rel_init_prev, etc.)
     for k, pars in calib_pars.items():
@@ -38,15 +58,16 @@ def make_sim_pars(sim, calib_pars):
         if v is None:
             continue
         if 'syph_' in k:
-            sim.diseases.syph.pars[k.replace('syph_', '')] = v
+            _get_disease(sim, 'syph').pars[k.replace('syph_', '')] = v
         elif 'hiv_' in k:
-            sim.diseases.hiv.pars[k.replace('hiv_', '')] = v
+            _get_disease(sim, 'hiv').pars[k.replace('hiv_', '')] = v
         elif 'nw_' in k:
+            nw = _get_network(sim, 'structuredsexual')
             par_name = k.replace('nw_', '')
-            if hasattr(sim.networks.structuredsexual.pars[par_name], 'set'):
-                sim.networks.structuredsexual.pars[par_name].set(v)
+            if hasattr(nw.pars[par_name], 'set'):
+                nw.pars[par_name].set(v)
             else:
-                sim.networks.structuredsexual.pars[par_name] = v
+                nw.pars[par_name] = v
 
     # Now initialize (uses updated rel_init_prev, etc.)
     if not sim.initialized:
