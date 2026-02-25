@@ -12,6 +12,7 @@ os.environ.update(
 )
 
 # %% Imports and settings
+import numpy as np
 import sciris as sc
 import stisim as sti
 import pandas as pd
@@ -37,13 +38,9 @@ def make_calibration(which='hiv'):
     ckw = dict(suggest_type='suggest_float')  #
     calib_par_dict = dict(
         hiv=dict(
-            hiv_beta_m2f=dict(low=0.008, high=0.02, guess=0.012, **ckw),
+            hiv_beta_m2f=dict(low=0.003, high=0.02, guess=0.008, **ckw),
             hiv_eff_condom=dict(low=0.5, high=0.95, guess=0.75, **ckw),
-            # nw_prop_f0 = dict(low=0.55, high=0.9, guess=0.85, **ckw),
-            # nw_prop_m0 = dict(low=0.50, high=0.9, guess=0.81, **ckw),
-            # nw_f1_conc = dict(low=0.01, high=0.2, guess=0.01, **ckw),
-            # nw_m1_conc = dict(low=0.01, high=0.2, guess=0.01, **ckw),
-            # nw_p_pair_form = dict(low=0.4, high=0.9, guess=0.5, **ckw),
+            hiv_rel_init_prev=dict(low=2, high=8, guess=4, **ckw),
         ),
         syph=dict(
             syph_beta_m2f=dict(low=0.05, high=0.3, guess=0.15, **ckw),
@@ -105,6 +102,19 @@ def make_calibration(which='hiv'):
         'syph.active_prevalence':10.0,
     }
 
+    # Reject trials where syphilis dies out
+    def check_syph_alive(sim):
+        if sim is None:
+            return False
+        if 'syph' in sim.diseases:
+            # Check syphilis is still transmitting in the last 5 years
+            syph_ni = sim.results.syph.new_infections[-60:]  # Last 5 years (monthly timesteps)
+            if np.sum(syph_ni) == 0:
+                return False
+        return True
+
+    check_fn = check_syph_alive if which in ['syph', 'all'] else None
+
     # Make the calibration — use continue_db and keep_db for HPC crash recovery
     calib = sti.Calibration(
         calib_pars=calib_pars,
@@ -113,6 +123,7 @@ def make_calibration(which='hiv'):
         weights=weights,
         sim=sim,
         data=data,
+        check_fn=check_fn,
         study_name=f'{LOCATION}_{which}_calibration',
         total_trials=TOTAL_TRIALS,
         die=False, reseed=False, storage=storage, save_results=True,

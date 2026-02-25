@@ -20,52 +20,51 @@ RESULTS_DIR = 'results'
 FIGURES_DIR = 'figures'
 
 
+def _extract_value(pars):
+    """ Extract value from a calibration parameter dict or scalar """
+    if isinstance(pars, dict):
+        return pars['value']
+    elif sc.isnumber(pars):
+        return pars
+    return None
+
+
 def make_sim_pars(sim, calib_pars):
-    if not sim.initialized: sim.init()
-    hiv = sim.diseases.hiv
-    nw = sim.networks.structuredsexual
-    if 'syph' in sim.diseases:
-        syph = sim.diseases.syph
-        symp_test = sim.interventions.symp_algo
-        anc_test = sim.interventions.anc_screen
-        kp_test = sim.interventions.dual_hiv
-
-    # Apply the calibration parameters
-    for k, pars in calib_pars.items():  # Loop over the calibration parameters
-        if k == 'rand_seed':
-            sim.pars.rand_seed = pars
+    # Set disease/network pars BEFORE init (needed for rel_init_prev, etc.)
+    for k, pars in calib_pars.items():
+        if k in ['rand_seed', 'index', 'mismatch']:
             continue
-
-        elif k in ['index', 'mismatch']:
+        v = _extract_value(pars)
+        if v is None:
             continue
-
-        if isinstance(pars, dict):
-            v = pars['value']
-        elif sc.isnumber(pars):
-            v = pars
-        else:
-            raise NotImplementedError(f'Parameter {k} not recognized')
-
-        if 'syph_' in k:  # Syphilis parameters
-            k = k.replace('syph_', '')  # Strip off indentifying part of parameter name
-            syph.pars[k] = v
-        elif 'hiv_' in k:  # HIV parameters
-            k = k.replace('hiv_', '')  # Strip off indentifying part of parameter name
-            hiv.pars[k] = v
-        elif 'nw_' in k:  # Network parameters
-            k = k.replace('nw_', '')  # As above
-            if 'pair_form' in k:
-                nw.pars[k].set(v)
+        if 'syph_' in k:
+            sim.diseases.syph.pars[k.replace('syph_', '')] = v
+        elif 'hiv_' in k:
+            sim.diseases.hiv.pars[k.replace('hiv_', '')] = v
+        elif 'nw_' in k:
+            par_name = k.replace('nw_', '')
+            if hasattr(sim.networks.structuredsexual.pars[par_name], 'set'):
+                sim.networks.structuredsexual.pars[par_name].set(v)
             else:
-                nw.pars[k] = v
-        elif k == 'rel_symp_test':
-            symp_test.pars['rel_test'] = v
+                sim.networks.structuredsexual.pars[par_name] = v
+
+    # Now initialize (uses updated rel_init_prev, etc.)
+    if not sim.initialized:
+        sim.init()
+
+    # Set intervention pars (only accessible after init)
+    for k, pars in calib_pars.items():
+        if k in ['rand_seed', 'index', 'mismatch']:
+            continue
+        v = _extract_value(pars)
+        if v is None:
+            continue
+        if k == 'rel_symp_test':
+            sim.interventions.symp_algo.pars['rel_test'] = v
         elif k == 'rel_anc_test':
-            anc_test.pars['rel_test'] = v
+            sim.interventions.anc_screen.pars['rel_test'] = v
         elif k == 'rel_kp_test':
-            kp_test.pars['rel_test'] = v
-        else:
-            raise NotImplementedError(f'Parameter {k} not recognized')
+            sim.interventions.dual_hiv.pars['rel_test'] = v
 
     return sim
 
