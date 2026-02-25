@@ -148,7 +148,7 @@ def run_calibration(calib, which='hiv', do_save=False):
 if __name__ == '__main__':
 
     which = 'all'  # 'hiv', 'syph', or 'all'
-    do_run = False
+    do_run = True
     make_stats = True
 
     # Run calibration — with continue_db=True, this will resume from any previous run
