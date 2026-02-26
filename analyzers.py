@@ -310,7 +310,8 @@ class NetworkSnapshot(ss.Analyzer):
         self.year = year
         self.name = 'network_snapshot'
         self.risk_group_data = None
-        self.concurrency_data = None
+        self.debut_data = None
+        self.lifetime_partners_data = None
         self.rel_dur_data = None
 
     def step(self):
@@ -333,13 +334,20 @@ class NetworkSnapshot(ss.Analyzer):
         rg_data[('Male', 'client')] = int((nw.client & ppl.male & active).count())
         self.risk_group_data = rg_data
 
-        # Panel D: Concurrent partners by risk group and sex
-        conc_data = {}
+        # Panel A: Lifetime partners for debuted agents only
+        debuted = nw.participant & ppl.alive & (ppl.age >= nw.debut)
+        lp_data = {}
         for sex_label, sex_bool in [('Female', ppl.female), ('Male', ppl.male)]:
-            for rg in [0, 1, 2]:
-                mask = (nw.risk_group == rg) & sex_bool & active
-                conc_data[(sex_label, rg)] = np.array(nw.partners[mask])
-        self.concurrency_data = conc_data
+            mask = sex_bool & debuted
+            lp_data[sex_label] = np.array(nw.lifetime_partners[mask])
+        self.lifetime_partners_data = lp_data
+
+        # Panel D: Sexual debut age by sex
+        debut_data = {}
+        for sex_label, sex_bool in [('Female', ppl.female), ('Male', ppl.male)]:
+            mask = sex_bool & debuted
+            debut_data[sex_label] = np.array(nw.debut[mask])
+        self.debut_data = debut_data
 
     def finalize(self):
         super().finalize()
