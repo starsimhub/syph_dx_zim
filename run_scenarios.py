@@ -75,8 +75,9 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
 
     print(f'Created {len(sims)} sims, running in parallel...')
 
-    # Run in parallel
-    sims = ss.parallel(sims).sims
+    # Run in parallel with progress tracking
+    print(f'Running {len(sims)} sims in parallel...')
+    sims = ss.parallel(sims, progress_bar=True).sims
     print(f'Completed {len(sims)} simulations')
 
     # Filter: keep only runs where syphilis survived
