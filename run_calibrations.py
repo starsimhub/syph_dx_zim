@@ -111,9 +111,13 @@ def make_calibration(which='hiv'):
     data = pd.read_csv(f'data/{LOCATION}_{which}_data.csv')
 
     weights = {
-        'syph.n_active':10.0,
-        'syph.new_infections':10.0,
-        'syph.active_prevalence':10.0,
+        'syph.n_active': 10.0,
+        'syph.new_infections': 10.0,
+        'syph.active_prevalence': 10.0,
+        'syph.active_prevalence_f': 20.0,     # ZIMPHIA single data point — high weight
+        'syph.active_prevalence_m': 20.0,     # ZIMPHIA single data point — high weight
+        'coinfection_stats.syph_prev_has_hiv': 20.0,  # ZIMPHIA — constrains connector params
+        'coinfection_stats.syph_prev_no_hiv': 20.0,   # ZIMPHIA — constrains connector params
     }
 
     # Pre-sim prune: reject parameter combos likely to cause syphilis die-out
