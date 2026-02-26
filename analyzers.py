@@ -312,6 +312,7 @@ class NetworkSnapshot(ss.Analyzer):
         self.risk_group_data = None
         self.debut_data = None
         self.lifetime_partners_data = None
+        self.partnership_by_age = None
         self.rel_dur_data = None
 
     def step(self):
@@ -348,6 +349,24 @@ class NetworkSnapshot(ss.Analyzer):
             mask = sex_bool & debuted
             debut_data[sex_label] = np.array(nw.debut[mask])
         self.debut_data = debut_data
+
+        # Panel E: Female partnership status by age
+        age_bins = np.arange(15, 51)
+        pba = dict(age_bins=age_bins, prop_stable=[], prop_casual=[])
+        for age in age_bins:
+            in_age = ppl.female & ppl.alive & (ppl.age >= age) & (ppl.age < age + 1)
+            n_total = int(in_age.count())
+            if n_total > 0:
+                n_stable = int((in_age & (nw.stable_partners >= 1)).count())
+                n_casual = int((in_age & (nw.casual_partners >= 1)).count())
+                pba['prop_stable'].append(n_stable / n_total)
+                pba['prop_casual'].append(n_casual / n_total)
+            else:
+                pba['prop_stable'].append(np.nan)
+                pba['prop_casual'].append(np.nan)
+        pba['prop_stable'] = np.array(pba['prop_stable'])
+        pba['prop_casual'] = np.array(pba['prop_casual'])
+        self.partnership_by_age = pba
 
     def finalize(self):
         super().finalize()
