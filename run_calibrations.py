@@ -86,6 +86,11 @@ def make_calibration(which='hiv'):
             'syph.new_congenital_deaths',
             'coinfection_stats.syph_prev_has_hiv',
             'coinfection_stats.syph_prev_no_hiv',
+            'transmission_by_stage.new_sex_primary',
+            'transmission_by_stage.new_sex_secondary',
+            'transmission_by_stage.new_sex_early',
+            'transmission_by_stage.new_sex_late',
+            'transmission_by_stage.new_sex_tertiary',
         ]
 
     if which == 'syph':
