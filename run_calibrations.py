@@ -90,6 +90,8 @@ def make_calibration(which='hiv'):
             'syph.new_congenital_deaths',
             'coinfection_stats.syph_prev_has_hiv',
             'coinfection_stats.syph_prev_no_hiv',
+            'active_coinfection_stats.syph_prev_has_hiv',
+            'active_coinfection_stats.syph_prev_no_hiv',
             'transmission_by_stage.new_sex_primary',
             'transmission_by_stage.new_sex_secondary',
             'transmission_by_stage.new_sex_early',
@@ -114,10 +116,10 @@ def make_calibration(which='hiv'):
         'syph.n_active': 10.0,
         'syph.new_infections': 10.0,
         'syph.active_prevalence': 10.0,
-        'syph.active_prevalence_f': 20.0,     # ZIMPHIA single data point — high weight
-        'syph.active_prevalence_m': 20.0,     # ZIMPHIA single data point — high weight
-        'coinfection_stats.syph_prev_has_hiv': 20.0,  # ZIMPHIA — constrains connector params
-        'coinfection_stats.syph_prev_no_hiv': 20.0,   # ZIMPHIA — constrains connector params
+        'syph.active_prevalence_f': 20.0,                       # ZIMPHIA survey — high weight
+        'syph.active_prevalence_m': 20.0,                       # ZIMPHIA survey — high weight
+        'active_coinfection_stats.syph_prev_has_hiv': 20.0,     # ZIMPHIA — active syph in HIV+
+        'active_coinfection_stats.syph_prev_no_hiv': 20.0,      # ZIMPHIA — active syph in HIV-
     }
 
     # Pre-sim prune: reject parameter combos likely to cause syphilis die-out

@@ -1,4 +1,4 @@
-time,n_alive,syph.new_infections,syph.n_active,syph.active_prevalence,syph.new_congenital_deaths,syph.new_congenital,coinfection_stats.syph_prev_has_hiv,coinfection_stats.syph_prev_no_hiv,syph.active_prevalence_f,syph.active_prevalence_m
+time,n_alive,syph.new_infections,syph.n_active,syph.active_prevalence,syph.new_congenital_deaths,syph.new_congenital,active_coinfection_stats.syph_prev_has_hiv,active_coinfection_stats.syph_prev_no_hiv,syph.active_prevalence_f,syph.active_prevalence_m
 1990,10113893.0,,,,900.0,2485.077812,,,,
 1991,10377815.0,,,,898.4375,2409.337258,,,,
 1992,10641501.0,,,,896.875,2320.520456,,,,
