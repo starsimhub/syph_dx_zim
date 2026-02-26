@@ -113,7 +113,7 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
     print(f'Created {len(sims)} uninitialized sims, running in parallel (init + run)...')
 
     # Run in parallel — each worker will call sim.init() then sim.run()
-    sims = ss.parallel(sims, progress_bar=True).sims
+    sims = ss.parallel(sims).sims
     print(f'Completed {len(sims)} simulations')
 
     # Filter: keep only runs where syphilis survived
