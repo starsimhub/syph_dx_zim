@@ -97,6 +97,16 @@ def make_calibration(which='hiv'):
             'transmission_by_stage.new_sex_early',
             'transmission_by_stage.new_sex_late',
             'transmission_by_stage.new_sex_tertiary',
+            'treatment_outcomes.gud_syndromic_treated',
+            'treatment_outcomes.gud_syndromic_success',
+            'treatment_outcomes.gud_syndromic_unnecessary',
+            'treatment_outcomes.anc_screen_treated',
+            'treatment_outcomes.anc_screen_success',
+            'treatment_outcomes.anc_screen_unnecessary',
+            'treatment_outcomes.secondary_rash_missed',
+            'treatment_outcomes.newborn_treated',
+            'treatment_outcomes.newborn_success',
+            'treatment_outcomes.n_active',
         ]
 
     if which == 'syph':
@@ -155,7 +165,7 @@ def make_calibration(which='hiv'):
         data=data,
         prune_fn=prune_fn,
         check_fn=check_fn,
-        study_name=f'{LOCATION}_{which}_calibration',
+        study_name=f'{LOCATION}_{which}_calibration_v9',
         total_trials=TOTAL_TRIALS,
         die=False, reseed=False, storage=storage, save_results=True,
         continue_db=True, keep_db=True,
