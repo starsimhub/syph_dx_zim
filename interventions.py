@@ -136,7 +136,7 @@ def make_hiv_intvs(add_dual=False):
     n_art = pd.read_csv(f'data/n_art.csv').set_index('year')
     n_vmmc = pd.read_csv(f'data/n_vmmc.csv').set_index('year')
     tests = get_testing_products(add_dual=add_dual)
-    art = sti.ART(coverage_data=n_art)
+    art = sti.ART(coverage_data=n_art, future_coverage={'year': 2022, 'prop': 0.90})
     vmmc = sti.VMMC(coverage_data=n_vmmc)
     prep = sti.Prep()
 

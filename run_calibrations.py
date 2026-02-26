@@ -42,6 +42,11 @@ def make_calibration(which='hiv'):
             hiv_eff_condom=dict(low=0.5, high=0.95, guess=0.75, **ckw),
             hiv_rel_init_prev=dict(low=2, high=8, guess=4, **ckw),
         ),
+        network=dict(
+            nw_prop_f0=dict(low=0.55, high=0.9, guess=0.7, **ckw),
+            nw_prop_m0=dict(low=0.45, high=0.85, guess=0.6, **ckw),
+            nw_m1_conc=dict(low=0.05, high=0.3, guess=0.15, **ckw),
+        ),
         syph=dict(
             syph_beta_m2f=dict(low=0.05, high=0.3, guess=0.15, **ckw),
             syph_eff_condom=dict(low=0.2, high=0.7, guess=0.5, **ckw),
@@ -97,22 +102,32 @@ def make_calibration(which='hiv'):
     data = pd.read_csv(f'data/{LOCATION}_{which}_data.csv')
 
     weights = {
-        'syph.n_infected':10.0,
+        'syph.n_active':10.0,
         'syph.new_infections':10.0,
         'syph.active_prevalence':10.0,
     }
 
-    # Reject trials where syphilis dies out
+    # Pre-sim prune: reject parameter combos likely to cause syphilis die-out
+    # Based on the effective transmission force: beta * rtp * (1 - eff_condom)
+    # From exploration, epidemic dies out when this product is too low
+    def prune_low_syph_transmission(pars):
+        beta = pars.get('syph_beta_m2f', {}).get('value', 0.15)
+        rtp = pars.get('syph_rel_trans_primary', {}).get('value', 5)
+        eff = pars.get('syph_eff_condom', {}).get('value', 0.5)
+        force = beta * rtp * (1 - eff)
+        return force < 0.3  # Prune if effective force is too low
+
+    # Post-sim check: reject trials where syphilis actually died out
     def check_syph_alive(sim):
         if sim is None:
             return False
         if 'syph' in sim.diseases:
-            # Check syphilis is still transmitting in the last 5 years
-            syph_ni = sim.results.syph.new_infections[-60:]  # Last 5 years (monthly timesteps)
+            syph_ni = sim.results.syph.new_infections[-60:]
             if np.sum(syph_ni) == 0:
                 return False
         return True
 
+    prune_fn = prune_low_syph_transmission if which in ['syph', 'all'] else None
     check_fn = check_syph_alive if which in ['syph', 'all'] else None
 
     # Make the calibration — use continue_db and keep_db for HPC crash recovery
@@ -123,6 +138,7 @@ def make_calibration(which='hiv'):
         weights=weights,
         sim=sim,
         data=data,
+        prune_fn=prune_fn,
         check_fn=check_fn,
         study_name=f'{LOCATION}_{which}_calibration',
         total_trials=TOTAL_TRIALS,
