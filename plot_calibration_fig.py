@@ -49,22 +49,22 @@ def plot_panel(ax, cs, col, data_df=None, data_col=None, title='', color='C0',
             ax.scatter(d.time, d[data_col], color=DATA_COLOR, s=15, zorder=5,
                        label='Data', edgecolors='none')
 
-    ax.set_title(title, fontsize=11, pad=4)
+    ax.set_title(title, fontsize=18, pad=6)
     if ylabel:
-        ax.set_ylabel(ylabel, fontsize=9)
+        ax.set_ylabel(ylabel, fontsize=15)
     ax.set_xlim(START_YEAR, END_YEAR)
     if ylim_bottom:
         ax.set_ylim(bottom=0)
     if si_ticks:
         sc.SIticks(ax, axis='y')
-    ax.tick_params(labelsize=8)
+    ax.tick_params(labelsize=13)
 
 
 def plot_calibration_figure():
-    set_font(size=11)
+    set_font(size=16)
     cs, data_hiv, data_syph = load_data()
 
-    fig = plt.figure(figsize=(14, 14))
+    fig = plt.figure(figsize=(18, 16))
     gs = GridSpec(3, 3, left=0.08, right=0.97, bottom=0.05, top=0.94,
                   wspace=0.30, hspace=0.35)
 
@@ -72,7 +72,7 @@ def plot_calibration_figure():
     ax = fig.add_subplot(gs[0, 0])
     plot_panel(ax, cs, 'hiv.prevalence_15_49', data_hiv, 'hiv.prevalence_15_49',
                'HIV prevalence (15-49)', HIV_COLOR, ylabel='Prevalence')
-    ax.legend(fontsize=7, loc='upper right', frameon=False)
+    ax.legend(fontsize=12, loc='upper right', frameon=False)
 
     ax = fig.add_subplot(gs[0, 1])
     plot_panel(ax, cs, 'hiv.new_infections', data_hiv, 'hiv.new_infections',
@@ -99,6 +99,7 @@ def plot_calibration_figure():
     ax = fig.add_subplot(gs[2, 0])
     plot_panel(ax, cs, 'syph.active_prevalence', data_syph, 'syph.active_prevalence',
                'Active syphilis prevalence', SYPH_COLOR, ylabel='Prevalence')
+    ax.set_ylim(0, 0.04)
 
     ax = fig.add_subplot(gs[2, 1])
     plot_panel(ax, cs, 'syph.n_active', data_syph, 'syph.n_active',
@@ -107,15 +108,16 @@ def plot_calibration_figure():
     ax = fig.add_subplot(gs[2, 2])
     plot_panel(ax, cs, 'syph.new_infections', data_syph, 'syph.new_infections',
                'Syphilis new infections', SYPH_COLOR, si_ticks=True)
+    ax.set_ylim(0, 500_000)
 
     # Panel labels
     labels = 'ABCDEFGHI'
     for i, ax in enumerate(fig.axes):
         ax.text(-0.12, 1.08, labels[i], transform=ax.transAxes,
-                fontsize=14, fontweight='bold', va='top')
+                fontsize=22, fontweight='bold', va='top')
 
     fig.suptitle('Figure S2: Model calibration to Zimbabwe HIV and syphilis epidemiological data',
-                 fontsize=12, y=0.98)
+                 fontsize=18, y=0.98)
 
     plt.savefig(f'{FIGURES_DIR}/fig_s2_calibration.png', dpi=300, bbox_inches='tight')
     print(f'Saved {FIGURES_DIR}/fig_s2_calibration.png')
