@@ -46,10 +46,12 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
     n_pars = min(n_pars, len(pars_df))
     print(f'Running scenario "{scenario}" with {n_pars} parameter sets x {seeds_per_par} seeds')
 
-    # Create one base sim per parameter set, then deep-copy for each seed.
-    # Only the base sim pays the make_sim + make_sim_pars cost; copies are cheap.
+    # For each parameter set, create one base sim and init+apply pars once per seed.
+    # Deep-copying the UNINITIALIZED base avoids redundant make_sim() calls,
+    # while each copy gets its own init() with a unique seed.
     sims = sc.autolist()
     for par_idx in range(n_pars):
+        # Create uninitialized base (no sim.init yet)
         base = make_sim(
             dislist='all',
             scenario=scenario,
@@ -59,15 +61,17 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
             verbose=-1,
         )
         calib_pars = pars_df.iloc[par_idx].to_dict()
-        base = make_sim_pars(base, calib_pars)
-        base.par_idx = par_idx
-        base.scenario = scenario
 
         for seed in range(1, seeds_per_par + 1):
             sim = sc.dcp(base)
             sim.pars['rand_seed'] = seed
+            sim = make_sim_pars(sim, calib_pars)  # Sets pre-init pars, calls init(), sets post-init pars
+            sim.par_idx = par_idx
             sim.seed = seed
+            sim.scenario = scenario
             sims += sim
+
+        print(f'  Created {seeds_per_par} sims for par_idx {par_idx}/{n_pars} (eff_force={pars_df.iloc[par_idx]["eff_force"]:.3f})')
 
     print(f'Created {len(sims)} sims, running in parallel...')
 
