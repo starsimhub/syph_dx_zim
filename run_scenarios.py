@@ -19,7 +19,7 @@ import numpy as np
 import sciris as sc
 import starsim as ss
 import pandas as pd
-from run_sims import make_sim, make_sim_pars
+from run_sims import make_sim, _extract_value, _get_disease, _get_network, _get_connector
 
 LOCATION = 'zimbabwe'
 RESULTS_DIR = 'results'
@@ -29,6 +29,31 @@ def check_syph_alive(sim):
     """Check that syphilis didn't die out (same as calibration check_fn)"""
     syph_ni = sim.results.syph.new_infections[-60:]  # Last 5 years
     return float(np.sum(syph_ni)) > 0
+
+
+def set_preinit_pars(sim, calib_pars):
+    """Set disease/network/connector pars on an uninitialized sim (fast, no init)"""
+    for k, pars in calib_pars.items():
+        if k in ['rand_seed', 'index', 'mismatch', 'eff_force']:
+            continue
+        v = _extract_value(pars)
+        if v is None:
+            continue
+        if 'syph_' in k:
+            _get_disease(sim, 'syph').pars[k.replace('syph_', '')] = v
+        elif 'hiv_' in k:
+            _get_disease(sim, 'hiv').pars[k.replace('hiv_', '')] = v
+        elif 'nw_' in k:
+            nw = _get_network(sim, 'structuredsexual')
+            par_name = k.replace('nw_', '')
+            if hasattr(nw.pars[par_name], 'set'):
+                nw.pars[par_name].set(v)
+            else:
+                nw.pars[par_name] = v
+        elif 'conn_' in k:
+            conn = _get_connector(sim, 'hiv_syph')
+            par_name = k.replace('conn_', '')
+            conn.pars[par_name] = v
 
 
 def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=2040, do_save=True):
@@ -46,12 +71,17 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
     n_pars = min(n_pars, len(pars_df))
     print(f'Running scenario "{scenario}" with {n_pars} parameter sets x {seeds_per_par} seeds')
 
-    # For each parameter set, create one base sim and init+apply pars once per seed.
-    # Deep-copying the UNINITIALIZED base avoids redundant make_sim() calls,
-    # while each copy gets its own init() with a unique seed.
+    # Create UNINITIALIZED sims with pre-init pars set.
+    # sim.init() will happen inside ss.parallel workers, utilizing all cores.
     sims = sc.autolist()
     for par_idx in range(n_pars):
-        # Create uninitialized base (no sim.init yet)
+        calib_pars = pars_df.iloc[par_idx].to_dict()
+
+        # Extract intervention rel_test values to pass during sim creation
+        rel_symp = _extract_value(calib_pars.get('rel_symp_test', 1.0)) or 1.0
+        rel_anc = _extract_value(calib_pars.get('rel_anc_test', 1.0)) or 1.0
+
+        # Create one uninitialized base with intervention pars baked in
         base = make_sim(
             dislist='all',
             scenario=scenario,
@@ -60,23 +90,29 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
             stop=stop,
             verbose=-1,
         )
-        calib_pars = pars_df.iloc[par_idx].to_dict()
+        # Set pre-init pars (disease, network, connector) — fast, no init
+        set_preinit_pars(base, calib_pars)
+
+        # Set intervention rel_test on the uninitialized intervention objects
+        for intv in base.pars.interventions:
+            if getattr(intv, 'name', '') == 'symp_algo':
+                intv.pars['rel_test'] = rel_symp
+            elif getattr(intv, 'name', '') == 'anc_screen':
+                intv.pars['rel_test'] = rel_anc
+            elif getattr(intv, 'name', '') == 'dual_hiv':
+                intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_kp_test', 1.0)) or 1.0
 
         for seed in range(1, seeds_per_par + 1):
             sim = sc.dcp(base)
             sim.pars['rand_seed'] = seed
-            sim = make_sim_pars(sim, calib_pars)  # Sets pre-init pars, calls init(), sets post-init pars
             sim.par_idx = par_idx
             sim.seed = seed
             sim.scenario = scenario
             sims += sim
 
-        print(f'  Created {seeds_per_par} sims for par_idx {par_idx}/{n_pars} (eff_force={pars_df.iloc[par_idx]["eff_force"]:.3f})')
+    print(f'Created {len(sims)} uninitialized sims, running in parallel (init + run)...')
 
-    print(f'Created {len(sims)} sims, running in parallel...')
-
-    # Run in parallel with progress tracking
-    print(f'Running {len(sims)} sims in parallel...')
+    # Run in parallel — each worker will call sim.init() then sim.run()
     sims = ss.parallel(sims, progress_bar=True).sims
     print(f'Completed {len(sims)} simulations')
 
