@@ -1,7 +1,7 @@
 algorithm,scenario,products,2000,2020,2027,2028
-symp_testing,soc,syndromic,1,1,1,1
+symp_testing,soc,syndromic_gud,1,1,1,1
 symp_testing,soc,gud,,,,
-symp_testing,gud,syndromic,1,1,1,
+symp_testing,gud,syndromic_gud,1,1,1,
 symp_testing,gud,gud,,,,1
 anc_confirm,soc,treat,0.7,0.7,0.7,0.7
 anc_confirm,soc,confirm,,,,

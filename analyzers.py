@@ -198,6 +198,163 @@ class transmission_by_stage(ss.Analyzer):
                 self.results[f'new_{tm}_{stage}'][ti] += count(new_trans[tm] & getattr(syph, stage))
 
 
+class treatment_outcomes(ss.Analyzer):
+    """
+    Track treatment outcomes by diagnostic pathway, sex, and HIV status.
+    Requires that to_treat() in interventions.py stores sim._tx_pathways.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = 'treatment_outcomes'
+        self.pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'tertiary']
+        self.test_intvs = {
+            'gud_syndromic': ['syndromic', 'gud_test'],
+            'anc_screen': ['anc_screen'],
+            'secondary_rash': ['secondary_algo'],
+        }
+
+    def init_results(self):
+        super().init_results()
+        results = sc.autolist()
+
+        # Per pathway: treated, success, unnecessary (overtreated), failure
+        for pw in self.pathways:
+            for oc in ['treated', 'success', 'unnecessary', 'failure']:
+                results += ss.Result(f'{pw}_{oc}', dtype=int, scale=True)
+                results += ss.Result(f'{pw}_{oc}_f', dtype=int, scale=True)
+                results += ss.Result(f'{pw}_{oc}_m', dtype=int, scale=True)
+                results += ss.Result(f'{pw}_{oc}_hivpos', dtype=int, scale=True)
+                results += ss.Result(f'{pw}_{oc}_hivneg', dtype=int, scale=True)
+
+        # Per pathway: false negatives (tested but missed active infection)
+        for pw in self.pathways:
+            if pw == 'tertiary':
+                continue  # No testing pathway for tertiary
+            results += ss.Result(f'{pw}_missed', dtype=int, scale=True)
+            results += ss.Result(f'{pw}_missed_f', dtype=int, scale=True)
+            results += ss.Result(f'{pw}_missed_m', dtype=int, scale=True)
+            results += ss.Result(f'{pw}_missed_hivpos', dtype=int, scale=True)
+            results += ss.Result(f'{pw}_missed_hivneg', dtype=int, scale=True)
+
+        # Overall active prevalence (for context)
+        results += ss.Result('n_active', dtype=int, scale=True)
+
+        self.define_results(*results)
+
+    def step(self):
+        sim = self.sim
+        ti = self.ti
+        syph = sim.diseases.syph
+        hiv = sim.diseases.hiv
+        ppl = sim.people
+
+        # Get treatment outcomes (set during treat.step(), before analyzer runs)
+        treat = sim.interventions['treat']
+        tx_oc = treat.outcomes.get('syph', sc.objdict())
+        successful = np.asarray(tx_oc.get('successful', ss.uids()))
+        unsuccessful = np.asarray(tx_oc.get('unsuccessful', ss.uids()))
+        unnecessary = np.asarray(tx_oc.get('unnecessary', ss.uids()))
+        all_treated = np.concatenate([successful, unsuccessful, unnecessary])
+
+        # Get pathway flags (stored by to_treat before states cleared)
+        pw_flags = getattr(sim, '_tx_pathways', None)
+        if pw_flags is None:
+            return
+
+        # Attribute treatments to pathways
+        for pw in self.pathways:
+            pw_uids = np.asarray(pw_flags.get(pw, ss.uids()))
+            if len(pw_uids) == 0 and len(all_treated) == 0:
+                continue
+
+            pw_treated = np.intersect1d(all_treated, pw_uids)
+            pw_success = np.intersect1d(successful, pw_uids)
+            pw_unnecessary = np.intersect1d(unnecessary, pw_uids)
+            pw_failure = np.intersect1d(unsuccessful, pw_uids)
+
+            self._record(f'{pw}_treated', pw_treated, ti, ppl, hiv)
+            self._record(f'{pw}_success', pw_success, ti, ppl, hiv)
+            self._record(f'{pw}_unnecessary', pw_unnecessary, ti, ppl, hiv)
+            self._record(f'{pw}_failure', pw_failure, ti, ppl, hiv)
+
+        # False negatives: tested negative but had active syphilis
+        # Since these people weren't treated, their active state persists
+        for pw, test_names in self.test_intvs.items():
+            missed = ss.uids()
+            for tn in test_names:
+                intv = sim.interventions[tn]
+                tested_neg = (intv.ti_negative == ti)
+                missed = missed | (tested_neg & syph.active).uids
+            self._record(f'{pw}_missed', np.asarray(missed), ti, ppl, hiv)
+
+        # Overall active prevalence
+        self.results['n_active'][ti] = count(syph.active)
+
+    def _record(self, prefix, uids, ti, ppl, hiv):
+        """Record a count disaggregated by sex and HIV status"""
+        self.results[prefix][ti] = len(uids)
+        if len(uids):
+            self.results[f'{prefix}_f'][ti] = count(ppl.female[uids])
+            self.results[f'{prefix}_m'][ti] = count(ppl.male[uids])
+            self.results[f'{prefix}_hivpos'][ti] = count(hiv.infected[uids])
+            self.results[f'{prefix}_hivneg'][ti] = count(~hiv.infected[uids])
+
+
+class NetworkSnapshot(ss.Analyzer):
+    """
+    Capture a snapshot of network properties at a specified year.
+    Used for the supplementary network structure figure.
+    """
+    def __init__(self, year=2020, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.year = year
+        self.name = 'network_snapshot'
+        self.risk_group_data = None
+        self.concurrency_data = None
+        self.rel_dur_data = None
+
+    def step(self):
+        if self.sim.t.yearvec[self.ti] == self.year:
+            self._capture_snapshot()
+
+    def _capture_snapshot(self):
+        sim = self.sim
+        nw = sim.networks.structuredsexual
+        ppl = sim.people
+        active = nw.participant & ppl.alive
+
+        # Panel C: Risk group composition
+        rg_data = {}
+        for sex_label, sex_bool in [('Female', ppl.female), ('Male', ppl.male)]:
+            for rg in [0, 1, 2]:
+                rg_data[(sex_label, rg)] = int(((nw.risk_group == rg) & sex_bool & active).count())
+            rg_data[(sex_label, 'total')] = int((sex_bool & active).count())
+        rg_data[('Female', 'fsw')] = int((nw.fsw & ppl.female & active).count())
+        rg_data[('Male', 'client')] = int((nw.client & ppl.male & active).count())
+        self.risk_group_data = rg_data
+
+        # Panel D: Concurrent partners by risk group and sex
+        conc_data = {}
+        for sex_label, sex_bool in [('Female', ppl.female), ('Male', ppl.male)]:
+            for rg in [0, 1, 2]:
+                mask = (nw.risk_group == rg) & sex_bool & active
+                conc_data[(sex_label, rg)] = np.array(nw.partners[mask])
+        self.concurrency_data = conc_data
+
+    def finalize(self):
+        super().finalize()
+        # Panel E: Relationship durations by edge type
+        nw = self.sim.networks.structuredsexual
+        dur_by_type = {0: [], 1: []}  # stable=0, casual=1
+        dt_year = self.sim.t.dt_year
+        for _, rels in nw.relationship_durs.items():
+            for rel in rels:
+                etype = rel.get('edge_type', -1)
+                if etype in dur_by_type:
+                    dur_by_type[etype].append(rel['dur'] * dt_year)
+        self.rel_dur_data = dur_by_type
+
+
 def make_analyzers(which='all', extra_analyzers=None):
     analyzers = sc.autolist()
     if which in ['all', 'stis']:
@@ -208,6 +365,7 @@ def make_analyzers(which='all', extra_analyzers=None):
             sti.sw_stats(diseases=['syph', 'hiv']),
             syph_idalys(),
             transmission_by_stage(),
+            treatment_outcomes(),
         ]
     analyzers += sc.autolist(extra_analyzers)
     return analyzers

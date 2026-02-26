@@ -293,10 +293,10 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         # People with visible secondary syphilis rash seeking care
         return (sim.diseases.syph.rash_visible & sim.diseases.syph.secondary).uids
 
-    # Secondary rash: assume treponemal RDT for people presenting with rash
+    # Secondary rash: syndromic management (low sensitivity ~10%)
     secondary_algo = sti.SyphTest(
         rel_test=rel_symp_test,
-        product=dxprods['dual'],  # Treponemal RDT for secondary rash presentations
+        product=dxprods['syndromic_rash'],  # Syndromic management for rash presentations
         eligibility=secondary_symptomatic,
         test_prob_data=symp_test_data,
         dt_scale=False,
@@ -322,8 +322,8 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     # Make individual screening interventions
     ####################################################
     syndromic = sti.SyphTest(
-        product=dxprods['syndromic'],
-        eligibility=lambda sim: sim.interventions['symp_algo'].outcomes['syndromic'] == sim.interventions['symp_algo'].ti,
+        product=dxprods['syndromic_gud'],
+        eligibility=lambda sim: sim.interventions['symp_algo'].outcomes['syndromic_gud'] == sim.interventions['symp_algo'].ti,
         dt_scale=False,
         name='syndromic',
         label='syndromic',
@@ -387,6 +387,16 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         p5 = sim.diseases.syph.tertiary
         p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
         to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
+
+        # Store pathway flags for the treatment_outcomes analyzer
+        # Called during treatment eligibility check, BEFORE states are cleared
+        sim._tx_pathways = sc.objdict(
+            gud_syndromic=(p2 | p3).uids,
+            anc_screen=(p1 | p4).uids,
+            secondary_rash=p6.uids,
+            tertiary=p5.uids,
+        )
+
         return to_treat
 
     treat = sti.SyphTx(
