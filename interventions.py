@@ -386,7 +386,8 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         p4 = sim.interventions['confirm'].outcomes['positive'] == sim.interventions['confirm'].ti
         p5 = sim.diseases.syph.tertiary
         p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
-        to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
+        p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti  # KP dual test
+        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7).uids
 
         # Store pathway flags for the treatment_outcomes analyzer
         # Called during treatment eligibility check, BEFORE states are cleared
@@ -394,7 +395,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
             gud_syndromic=(p2 | p3).uids,
             anc_screen=(p1 | p4).uids,
             secondary_rash=p6.uids,
-            tertiary=p5.uids,
+            kp_screen=p7.uids,
         )
 
         return to_treat

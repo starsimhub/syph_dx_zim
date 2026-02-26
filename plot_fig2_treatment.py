@@ -2,7 +2,7 @@
 Plot Figure 2: Treatment outcomes under standard of care.
 
 Shows overtreatment vs undertreatment disaggregated by:
-    - Diagnostic pathway (GUD syndromic, ANC screening, secondary rash, tertiary)
+    - Diagnostic pathway (GUD syndromic, ANC screening, secondary rash, KP dual RDT)
     - Sex
     - HIV status
 """
@@ -22,13 +22,13 @@ PATHWAY_LABELS = {
     'gud_syndromic': 'GUD\nsyndromic',
     'anc_screen': 'ANC\nscreening',
     'secondary_rash': 'Secondary\nrash',
-    'tertiary': 'Tertiary',
+    'kp_screen': 'KP dual\nRDT',
 }
 PATHWAY_COLORS = {
     'gud_syndromic': '#e41a1c',
     'anc_screen': '#377eb8',
     'secondary_rash': '#ff7f00',
-    'tertiary': '#984ea3',
+    'kp_screen': '#984ea3',
 }
 
 # Outcome colors
@@ -70,7 +70,7 @@ def get_metric(df, metric, start_year=2000, end_year=2035):
 
 def plot_treatment_time_series(df, ax, start_year=2000, end_year=2035):
     """Panel A: Treatment outcomes over time (stacked area)"""
-    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'tertiary']
+    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen']
 
     # Total treated = success + unnecessary + failure across all pathways
     for i, pw in enumerate(pathways):
@@ -92,7 +92,7 @@ def plot_treatment_time_series(df, ax, start_year=2000, end_year=2035):
 
 def plot_overtreatment_by_pathway(df, ax, start_year=2000, end_year=2035):
     """Panel B: Stacked bars showing treated vs overtreated by pathway"""
-    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'tertiary']
+    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen']
     x = np.arange(len(pathways))
     width = 0.35
 
@@ -120,7 +120,7 @@ def plot_overtreatment_by_pathway(df, ax, start_year=2000, end_year=2035):
 
 def plot_missed_by_pathway(df, ax, start_year=2000, end_year=2035):
     """Panel C: Missed diagnoses (false negatives) by pathway"""
-    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash']  # No testing for tertiary
+    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen']
     x = np.arange(len(pathways))
 
     missed_vals = []
@@ -144,7 +144,7 @@ def plot_missed_by_pathway(df, ax, start_year=2000, end_year=2035):
 
 def plot_outcomes_by_sex(df, ax, start_year=2000, end_year=2035):
     """Panel D: Treatment outcomes by sex"""
-    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'tertiary']
+    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen']
     outcomes = ['success', 'unnecessary']
     x = np.arange(len(pathways))
     width = 0.2
@@ -176,7 +176,7 @@ def plot_outcomes_by_sex(df, ax, start_year=2000, end_year=2035):
 
 def plot_outcomes_by_hiv(df, ax, start_year=2000, end_year=2035):
     """Panel E: Treatment outcomes by HIV status"""
-    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'tertiary']
+    pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen']
     x = np.arange(len(pathways))
     width = 0.2
 
