@@ -49,8 +49,18 @@ def _get_network(sim, name):
     return None
 
 
+def _get_connector(sim, name):
+    """ Get a connector by name, works both before and after sim.init() """
+    connectors = sim.connectors if sim.initialized else sim.pars.connectors
+    if connectors is not None:
+        for c in connectors:
+            if type(c).__name__ == name:
+                return c
+    return None
+
+
 def make_sim_pars(sim, calib_pars):
-    # Set disease/network pars BEFORE init (needed for rel_init_prev, etc.)
+    # Set disease/network/connector pars BEFORE init (needed for rel_init_prev, etc.)
     for k, pars in calib_pars.items():
         if k in ['rand_seed', 'index', 'mismatch']:
             continue
@@ -68,6 +78,10 @@ def make_sim_pars(sim, calib_pars):
                 nw.pars[par_name].set(v)
             else:
                 nw.pars[par_name] = v
+        elif 'conn_' in k:
+            conn = _get_connector(sim, 'hiv_syph')
+            par_name = k.replace('conn_', '')
+            conn.pars[par_name] = v
 
     # Now initialize (uses updated rel_init_prev, etc.)
     if not sim.initialized:

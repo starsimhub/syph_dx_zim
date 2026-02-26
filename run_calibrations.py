@@ -38,9 +38,9 @@ def make_calibration(which='hiv'):
     ckw = dict(suggest_type='suggest_float')  #
     calib_par_dict = dict(
         hiv=dict(
-            hiv_beta_m2f=dict(low=0.003, high=0.02, guess=0.008, **ckw),
+            hiv_beta_m2f=dict(low=0.003, high=0.015, guess=0.008, **ckw),
             hiv_eff_condom=dict(low=0.5, high=0.95, guess=0.75, **ckw),
-            hiv_rel_init_prev=dict(low=2, high=8, guess=4, **ckw),
+            hiv_rel_init_prev=dict(low=1, high=6, guess=3, **ckw),
         ),
         network=dict(
             nw_prop_f0=dict(low=0.55, high=0.9, guess=0.7, **ckw),
@@ -48,9 +48,13 @@ def make_calibration(which='hiv'):
             nw_m1_conc=dict(low=0.05, high=0.3, guess=0.15, **ckw),
         ),
         syph=dict(
-            syph_beta_m2f=dict(low=0.05, high=0.3, guess=0.15, **ckw),
+            syph_beta_m2f=dict(low=0.08, high=0.4, guess=0.15, **ckw),
             syph_eff_condom=dict(low=0.2, high=0.7, guess=0.5, **ckw),
-            syph_rel_trans_primary=dict(low=3, high=10, guess=5, **ckw),
+            syph_rel_trans_primary=dict(low=3, high=10, guess=7, **ckw),
+        ),
+        connector=dict(
+            conn_rel_sus_syph_hiv=dict(low=1.0, high=3.0, guess=1.5, **ckw),  # HIV increases syphilis susceptibility
+            conn_rel_sus_hiv_syph=dict(low=1.5, high=4.0, guess=2.67, **ckw),  # Syphilis increases HIV susceptibility
         ),
         testing=dict(
             rel_symp_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),

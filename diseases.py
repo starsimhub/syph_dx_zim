@@ -40,7 +40,7 @@ def make_diseases(which='all'):
 
     connectors = None
     if which == 'all':
-        connectors = [sti.hiv_syph(hiv, syph, rel_sus_hiv_syph=2)]
+        connectors = [sti.hiv_syph(hiv, syph)]  # Defaults: rel_sus_hiv_syph=2.67, rel_sus_syph_hiv=1; overridden by calibration
 
     return diseases, connectors
 
