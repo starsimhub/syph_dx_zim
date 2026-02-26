@@ -35,7 +35,7 @@ def make_diseases(which='all'):
             init_prev_data=pd.read_csv('data/init_prev_syph.csv'),
             # init_prev_latent_data=pd.read_csv('data/init_prev_latent_syph.csv'),
         )
-        gud = sti.GUDPlaceholder(prevalence=0.05)
+        gud = sti.GUDPlaceholder(prevalence=0.01)
         diseases.extend([syph, gud])
 
     connectors = None

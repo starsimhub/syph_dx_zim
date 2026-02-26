@@ -307,16 +307,45 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     interventions += [symp_algo, secondary_algo]
 
     ####################################################
+    # Make newborn testing algorithm (scheduled by ANC when mother is positive)
+    ####################################################
+    newborn_algo = sti.SyphTest(
+        product=dxalgos[scenspecs.newborn_algo],
+        eligibility=lambda sim: ss.uids(),  # Eligibility handled via scheduling
+        dt_scale=False,
+        name='newborn_algo',
+        label='newborn_algo',
+    )
+
+    # Individual newborn tests routed by the algorithm
+    newborn_exam = sti.SyphTest(
+        product=dxprods[scenspecs.newborn_test],
+        eligibility=lambda sim: sim.interventions['newborn_algo'].outcomes.get('exam', ss.uids()) == sim.interventions['newborn_algo'].ti,
+        dt_scale=False,
+        name='newborn_exam',
+        label='newborn_exam',
+    )
+
+    newborn_poc = sti.SyphTest(
+        product=dxprods.get('poc_cs', dxprods[scenspecs.newborn_test]),
+        eligibility=lambda sim: sim.interventions['newborn_algo'].outcomes.get('poc_cs', ss.uids()) == sim.interventions['newborn_algo'].ti,
+        dt_scale=False,
+        name='newborn_poc',
+        label='newborn_poc',
+    )
+
+    ####################################################
     # Make ANC screening algorithms
     ####################################################
     anc_testing = sti.ANCSyphTest(
         product=dxprods['dual'],
         test_prob_data=anc_test_data,
         years=years,
+        newborn_test=newborn_algo,  # Schedule newborn test when mother is ANC-positive
         name='anc_screen',
         label='anc_screen',
     )
-    interventions += anc_testing
+    interventions += [anc_testing, newborn_algo, newborn_exam, newborn_poc]
 
     ####################################################
     # Make individual screening interventions
@@ -387,7 +416,12 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         p5 = sim.diseases.syph.tertiary
         p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
         p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti  # KP dual test
-        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7).uids
+        # Newborn pathway: algorithm routes to treat directly, or exam/poc_cs test positive
+        p8_direct = sim.interventions['newborn_algo'].outcomes.get('treat', ss.uids()) == sim.interventions['newborn_algo'].ti
+        p8_exam = sim.interventions['newborn_exam'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_exam'].ti
+        p8_poc = sim.interventions['newborn_poc'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_poc'].ti
+        p8 = p8_direct | p8_exam | p8_poc
+        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p8).uids
 
         # Store pathway flags for the treatment_outcomes analyzer
         # Called during treatment eligibility check, BEFORE states are cleared
@@ -396,6 +430,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
             anc_screen=(p1 | p4).uids,
             secondary_rash=p6.uids,
             kp_screen=p7.uids,
+            newborn=p8.uids,
         )
 
         return to_treat

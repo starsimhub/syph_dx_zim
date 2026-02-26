@@ -206,12 +206,13 @@ class treatment_outcomes(ss.Analyzer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = 'treatment_outcomes'
-        self.pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen']
+        self.pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen', 'newborn']
         self.test_intvs = {
             'gud_syndromic': ['syndromic', 'gud_test'],
             'anc_screen': ['anc_screen'],
             'secondary_rash': ['secondary_algo'],
             'kp_screen': ['dual_hiv'],
+            'newborn': ['newborn_exam', 'newborn_poc'],
         }
 
     def init_results(self):
