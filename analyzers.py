@@ -248,12 +248,18 @@ class treatment_outcomes(ss.Analyzer):
         hiv = sim.diseases.hiv
         ppl = sim.people
 
-        # Get treatment outcomes (set during treat.step(), before analyzer runs)
-        treat = sim.interventions['treat']
-        tx_oc = treat.outcomes.get('syph', sc.objdict())
-        successful = np.asarray(tx_oc.get('successful', ss.uids()))
-        unsuccessful = np.asarray(tx_oc.get('unsuccessful', ss.uids()))
-        unnecessary = np.asarray(tx_oc.get('unnecessary', ss.uids()))
+        # Get treatment outcomes from adult + newborn treatment interventions
+        successful, unsuccessful, unnecessary = ss.uids(), ss.uids(), ss.uids()
+        for tx_name in ['treat', 'newborn_treat']:
+            tx = sim.interventions.get(tx_name)
+            if tx is not None:
+                tx_oc = tx.outcomes.get('syph', sc.objdict())
+                successful = successful | ss.uids(tx_oc.get('successful', ss.uids()))
+                unsuccessful = unsuccessful | ss.uids(tx_oc.get('unsuccessful', ss.uids()))
+                unnecessary = unnecessary | ss.uids(tx_oc.get('unnecessary', ss.uids()))
+        successful = np.asarray(successful)
+        unsuccessful = np.asarray(unsuccessful)
+        unnecessary = np.asarray(unnecessary)
         all_treated = np.concatenate([successful, unsuccessful, unnecessary])
 
         # Get pathway flags (stored by to_treat before states cleared)

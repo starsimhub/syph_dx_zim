@@ -416,15 +416,16 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         p5 = sim.diseases.syph.tertiary
         p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
         p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti  # KP dual test
-        # Newborn pathway: algorithm routes to treat directly, or exam/poc_cs test positive
+        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7).uids
+
+        # Store pathway flags for the treatment_outcomes analyzer
+        # Called during treatment eligibility check, BEFORE states are cleared
+        # Newborn pathway flags stored here too (from newborn_treat eligibility)
         p8_direct = sim.interventions['newborn_algo'].outcomes.get('treat', ss.uids()) == sim.interventions['newborn_algo'].ti
         p8_exam = sim.interventions['newborn_exam'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_exam'].ti
         p8_poc = sim.interventions['newborn_poc'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_poc'].ti
         p8 = p8_direct | p8_exam | p8_poc
-        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p8).uids
 
-        # Store pathway flags for the treatment_outcomes analyzer
-        # Called during treatment eligibility check, BEFORE states are cleared
         sim._tx_pathways = sc.objdict(
             gud_syndromic=(p2 | p3).uids,
             anc_screen=(p1 | p4).uids,
@@ -438,12 +439,24 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     treat = sti.SyphTx(
         years=years,
         eligibility=to_treat,
-        # fetus_treat_eff=0.1,
-        # treat_eff_reduced=0.05,
         name='treat',
         label='treat',
     )
-    interventions += [treat]
+
+    # Newborn treatment — uses NewbornTreatment which checks congenital state
+    def newborn_to_treat(sim):
+        p8_direct = sim.interventions['newborn_algo'].outcomes.get('treat', ss.uids()) == sim.interventions['newborn_algo'].ti
+        p8_exam = sim.interventions['newborn_exam'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_exam'].ti
+        p8_poc = sim.interventions['newborn_poc'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_poc'].ti
+        return (p8_direct | p8_exam | p8_poc).uids
+
+    newborn_treat = sti.NewbornTreatment(
+        years=years,
+        eligibility=newborn_to_treat,
+        name='newborn_treat',
+    )
+
+    interventions += [treat, newborn_treat]
 
     # Add risk reduction,
     pregnancy_risk = pregnancy_risk_reduction()
