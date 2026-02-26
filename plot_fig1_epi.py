@@ -126,9 +126,10 @@ def plot_active_prev_by_age(epi_df, ax):
 
 def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019):
     """Panel D/E: Infections by sex work status as percentages"""
-    groups = {'fsw': 'FSW', 'client': 'Client', 'non_fsw': 'Other F', 'non_client': 'Other M'}
+    groups = {'fsw': 'Women in transactional sex', 'client': 'Men in transactional sex',
+               'non_fsw': 'Other girls/women', 'non_client': 'Other boys/men'}
     colors = [F_COLOR, M_COLOR, F_COLOR_LIGHT, M_COLOR_LIGHT]
-    width = 0.6
+    width = 0.85
 
     si = sc.findfirst(sw_df.index, start_year)
     ei = sc.findfirst(sw_df.index, end_year)
@@ -154,8 +155,13 @@ def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019
 
     ax.set_title(f'{disease.upper()} infections\n{start_year}\u2013{end_year} average')
     ax.set_xlim(0, 100)
+    ax.set_ylim(0, 2.3)
     ax.set_xlabel('%')
     ax.set_yticks(x, ['Acquired', 'Transmitted'])
+
+    # Add legend inside the plot (upper area)
+    ax.legend(loc='upper right', fontsize=12, frameon=False,
+              ncol=2, columnspacing=1.0, handlelength=1.2, labelspacing=0.3)
 
 
 def plot_hiv_prev_by_age(epi_df, ax):
