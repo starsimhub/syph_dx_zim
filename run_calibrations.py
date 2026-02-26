@@ -36,30 +36,31 @@ def make_calibration(which='hiv'):
 
     # Define the calibration parameters
     ckw = dict(suggest_type='suggest_float')  #
+    # Ranges tightened based on 5th-95th percentiles of v9 best 120 fits
     calib_par_dict = dict(
         hiv=dict(
-            hiv_beta_m2f=dict(low=0.003, high=0.015, guess=0.008, **ckw),
-            hiv_eff_condom=dict(low=0.5, high=0.95, guess=0.75, **ckw),
-            hiv_rel_init_prev=dict(low=1, high=6, guess=3, **ckw),
+            hiv_beta_m2f=dict(low=0.004, high=0.014, guess=0.008, **ckw),
+            hiv_eff_condom=dict(low=0.5, high=0.9, guess=0.75, **ckw),
+            hiv_rel_init_prev=dict(low=2, high=6, guess=4, **ckw),
         ),
         network=dict(
             nw_prop_f0=dict(low=0.55, high=0.9, guess=0.7, **ckw),
-            nw_prop_m0=dict(low=0.45, high=0.85, guess=0.6, **ckw),
+            nw_prop_m0=dict(low=0.55, high=0.8, guess=0.65, **ckw),
             nw_m1_conc=dict(low=0.05, high=0.3, guess=0.15, **ckw),
         ),
         syph=dict(
-            syph_beta_m2f=dict(low=0.08, high=0.4, guess=0.15, **ckw),
-            syph_eff_condom=dict(low=0.2, high=0.7, guess=0.5, **ckw),
-            syph_rel_trans_primary=dict(low=3, high=10, guess=7, **ckw),
+            syph_beta_m2f=dict(low=0.15, high=0.35, guess=0.2, **ckw),         # Tightened: was 0.08-0.4
+            syph_eff_condom=dict(low=0.3, high=0.7, guess=0.5, **ckw),         # Tightened: was 0.2-0.7
+            syph_rel_trans_primary=dict(low=3, high=10, guess=6, **ckw),
         ),
         connector=dict(
-            conn_rel_sus_syph_hiv=dict(low=1.0, high=3.0, guess=1.5, **ckw),  # HIV increases syphilis susceptibility
-            conn_rel_sus_hiv_syph=dict(low=1.5, high=4.0, guess=2.67, **ckw),  # Syphilis increases HIV susceptibility
+            conn_rel_sus_syph_hiv=dict(low=1.0, high=3.0, guess=1.5, **ckw),
+            conn_rel_sus_hiv_syph=dict(low=1.5, high=4.0, guess=2.67, **ckw),
         ),
         testing=dict(
-            rel_symp_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),
-            rel_anc_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),
-            rel_kp_test=dict(low=0.5, high=2.0, guess=1.0, **ckw),
+            rel_symp_test=dict(low=0.5, high=1.5, guess=1.0, **ckw),           # Tightened: was 0.5-2.0
+            rel_anc_test=dict(low=0.7, high=1.8, guess=1.0, **ckw),            # Tightened: was 0.5-2.0
+            rel_kp_test=dict(low=0.5, high=1.7, guess=1.0, **ckw),             # Tightened: was 0.5-2.0
         ),
     )
     if which != 'all': calib_pars = calib_par_dict[which]
@@ -165,7 +166,7 @@ def make_calibration(which='hiv'):
         data=data,
         prune_fn=prune_fn,
         check_fn=check_fn,
-        study_name=f'{LOCATION}_{which}_calibration_v9',
+        study_name=f'{LOCATION}_{which}_calibration_v10',
         total_trials=TOTAL_TRIALS,
         die=False, reseed=False, storage=storage, save_results=True,
         continue_db=True, keep_db=True,
