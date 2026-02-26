@@ -46,24 +46,30 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
     n_pars = min(n_pars, len(pars_df))
     print(f'Running scenario "{scenario}" with {n_pars} parameter sets x {seeds_per_par} seeds')
 
-    # Create all sims (n_pars x seeds_per_par)
+    # Create one base sim per parameter set, then deep-copy for each seed.
+    # Only the base sim pays the make_sim + make_sim_pars cost; copies are cheap.
     sims = sc.autolist()
     for par_idx in range(n_pars):
+        base = make_sim(
+            dislist='all',
+            scenario=scenario,
+            seed=1,
+            start=start,
+            stop=stop,
+            verbose=-1,
+        )
+        calib_pars = pars_df.iloc[par_idx].to_dict()
+        base = make_sim_pars(base, calib_pars)
+        base.par_idx = par_idx
+        base.scenario = scenario
+
         for seed in range(1, seeds_per_par + 1):
-            sim = make_sim(
-                dislist='all',
-                scenario=scenario,
-                seed=seed,
-                start=start,
-                stop=stop,
-                verbose=-1,
-            )
-            calib_pars = pars_df.iloc[par_idx].to_dict()
-            sim = make_sim_pars(sim, calib_pars)
-            sim.par_idx = par_idx
+            sim = sc.dcp(base)
+            sim.pars['rand_seed'] = seed
             sim.seed = seed
-            sim.scenario = scenario
             sims += sim
+
+    print(f'Created {len(sims)} sims, running in parallel...')
 
     # Run in parallel
     sims = ss.parallel(sims).sims
