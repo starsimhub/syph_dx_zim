@@ -12,7 +12,7 @@ def set_font(size=None, font='Libertinus Sans'):
 
 
 percentile_pairs = [[.01, .99], [.1, .9], [.25, .75]]  # Order by wide to narrow (for alpha shading in plots)
-percentiles = [percentile for percentile_pair in percentile_pairs for percentile in percentile_pair]
+percentiles = [.5] + [percentile for percentile_pair in percentile_pairs for percentile in percentile_pair]
 
 
 def count(arr): return np.count_nonzero(arr)
