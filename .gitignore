@@ -81,3 +81,4 @@ Thumbs.db
 *.tmp
 *.bak
 *~
+results/treatment_outcomes_*.df
