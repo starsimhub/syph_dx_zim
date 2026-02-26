@@ -23,12 +23,14 @@ PATHWAY_LABELS = {
     'anc_screen': 'ANC\nscreening',
     'secondary_rash': 'Secondary\nrash',
     'kp_screen': 'KP dual\nRDT',
+    'newborn': 'Newborn',
 }
 PATHWAY_COLORS = {
     'gud_syndromic': '#e41a1c',
     'anc_screen': '#377eb8',
     'secondary_rash': '#ff7f00',
     'kp_screen': '#984ea3',
+    'newborn': '#4daf4a',
 }
 
 OC_COLORS = {
@@ -40,7 +42,7 @@ OC_COLORS = {
 F_COLOR = '#d46e9c'
 M_COLOR = '#4a90d9'
 
-PATHWAYS = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen']
+PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'newborn']
 
 
 def load_data(scenario='soc'):
