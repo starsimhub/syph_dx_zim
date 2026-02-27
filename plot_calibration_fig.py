@@ -64,8 +64,8 @@ def plot_calibration_figure():
     set_font(size=16)
     cs, data_hiv, data_syph = load_data()
 
-    fig = plt.figure(figsize=(18, 16))
-    gs = GridSpec(3, 3, left=0.08, right=0.97, bottom=0.05, top=0.94,
+    fig = plt.figure(figsize=(18, 21))
+    gs = GridSpec(4, 3, left=0.08, right=0.97, bottom=0.04, top=0.95,
                   wspace=0.30, hspace=0.35)
 
     # --- Row 1: HIV ---
@@ -110,8 +110,48 @@ def plot_calibration_figure():
                'Syphilis new infections', SYPH_COLOR, si_ticks=True)
     ax.set_ylim(0, 500_000)
 
+    # --- Row 4: Syphilis ever-exposed & reinfection ---
+    F_COLOR = '#d46e9c'
+    M_COLOR = '#4a90d9'
+    FSW_COLOR = '#e41a1c'
+
+    ax = fig.add_subplot(gs[3, 0])
+    years = cs.index
+    for col, color, label in [
+        ('epi_ts.syph_ever_exposed_f', F_COLOR, 'Female'),
+        ('epi_ts.syph_ever_exposed_m', M_COLOR, 'Male'),
+        ('epi_ts.syph_ever_exposed_fsw', FSW_COLOR, 'FSW'),
+    ]:
+        med, lo, hi = get_stats(cs, col)
+        ax.fill_between(years, lo * 100, hi * 100, alpha=BAND_ALPHA, color=color)
+        ax.plot(years, med * 100, color=color, linewidth=1.5, label=label)
+    ax.set_title('Ever exposed to syphilis', fontsize=18, pad=6)
+    ax.set_ylabel('Prevalence (%)', fontsize=15)
+    ax.set_xlim(START_YEAR, END_YEAR)
+    ax.set_ylim(bottom=0)
+    ax.legend(fontsize=12, frameon=False)
+    ax.tick_params(labelsize=13)
+
+    ax = fig.add_subplot(gs[3, 1])
+    plot_panel(ax, cs, 'epi_ts.syph_pct_reinfected', title='Reinfected (% of ever-exposed)',
+               color=SYPH_COLOR, ylabel='%')
+    # Convert to percentage
+    med, lo, hi = get_stats(cs, 'epi_ts.syph_pct_reinfected')
+    ax.clear()
+    ax.fill_between(years, lo * 100, hi * 100, alpha=BAND_ALPHA, color=SYPH_COLOR)
+    ax.plot(years, med * 100, color=SYPH_COLOR, linewidth=1.5)
+    ax.set_title('Reinfected (% of ever-exposed)', fontsize=18, pad=6)
+    ax.set_ylabel('%', fontsize=15)
+    ax.set_xlim(START_YEAR, END_YEAR)
+    ax.set_ylim(bottom=0)
+    ax.tick_params(labelsize=13)
+
+    ax = fig.add_subplot(gs[3, 2])
+    plot_panel(ax, cs, 'syph.new_reinfections', title='New reinfections',
+               color=SYPH_COLOR, si_ticks=True)
+
     # Panel labels
-    labels = 'ABCDEFGHI'
+    labels = 'ABCDEFGHIJKL'
     for i, ax in enumerate(fig.axes):
         ax.text(-0.12, 1.08, labels[i], transform=ax.transAxes,
                 fontsize=22, fontweight='bold', va='top')
