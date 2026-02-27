@@ -147,12 +147,32 @@ class epi_ts(ss.Analyzer):
             ss.Result('syph.new_infections_m', dtype=float),
             ss.Result('hiv.new_infections_f', dtype=float),
             ss.Result('hiv.new_infections_m', dtype=float),
+            ss.Result('syph.prevalence_fsw', dtype=float, scale=False),
+            ss.Result('syph.active_prevalence_fsw', dtype=float, scale=False),
+            ss.Result('syph.prevalence_client', dtype=float, scale=False),
         ]
         self.define_results(*results)
         return
 
     def step(self):
-        pass
+        sim = self.sim
+        ti = self.ti
+        nw = sim.networks.structuredsexual
+        syph = sim.diseases.syph
+        ppl = sim.people
+
+        # FSW syphilis prevalence
+        fsw = nw.fsw & ppl.alive
+        n_fsw = fsw.count()
+        if n_fsw > 0:
+            self.results['syph.prevalence_fsw'][ti] = float(np.mean(syph.infected[fsw]))
+            self.results['syph.active_prevalence_fsw'][ti] = float(np.mean(syph.active[fsw]))
+
+        # Client syphilis prevalence
+        client = nw.client & ppl.alive
+        n_client = client.count()
+        if n_client > 0:
+            self.results['syph.prevalence_client'][ti] = float(np.mean(syph.infected[client]))
 
     def finalize(self):
         super().finalize()
