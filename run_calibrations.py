@@ -27,7 +27,7 @@ FIGURES_DIR = 'figures'
 
 
 # Run settings
-TOTAL_TRIALS = 1200
+TOTAL_TRIALS = 2000
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
 
@@ -41,8 +41,8 @@ def make_calibration(which='hiv'):
         hiv=dict(
             hiv_beta_m2f=dict(low=0.002, high=0.014, guess=0.006, **ckw),
             hiv_eff_condom=dict(low=0.5, high=0.9, guess=0.75, **ckw),
-            hiv_rel_init_prev=dict(low=2, high=10, guess=5, **ckw),
-            hiv_rel_dur_on_art=dict(low=1.0, high=10.0, guess=3.0, **ckw),
+            hiv_rel_init_prev=dict(low=2, high=15, guess=8, **ckw),
+            hiv_rel_dur_on_art=dict(low=1.0, high=20.0, guess=8.0, **ckw),
         ),
         network=dict(
             nw_prop_f0=dict(low=0.55, high=0.9, guess=0.7, **ckw),
@@ -194,7 +194,7 @@ def make_calibration(which='hiv'):
         data=data,
         prune_fn=prune_fn,
         check_fn=check_fn,
-        study_name=f'{LOCATION}_{which}_calibration_v18',
+        study_name=f'{LOCATION}_{which}_calibration_v19',
         total_trials=TOTAL_TRIALS,
         die=False, reseed=False, storage=storage, save_results=True,
         continue_db=True, keep_db=True,

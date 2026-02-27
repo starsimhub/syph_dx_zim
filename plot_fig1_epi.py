@@ -16,7 +16,6 @@ Row 2 (4 panels: 3 narrow + 1 wider):
 import sciris as sc
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as pl
 from matplotlib.gridspec import GridSpec
 from utils import set_font
@@ -294,38 +293,77 @@ def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019
 
 
 def plot_hiv_prev_by_age(epi_df, ax):
-    """Panel G: HIV prevalence by age and sex + ZIMPHIA 2016 & 2020"""
+    """Panel G: HIV prevalence by age and sex + ZIMPHIA 2016 & 2020, with 15-65 aggregate"""
     thisdf = epi_df.loc[(epi_df.disease == 'hiv') &
                         (epi_df.age != '0-15') &
                         (epi_df.age != '65+')].copy()
     thisdf['prevalence'] *= 100
-    sns.barplot(data=thisdf, x='age', y='prevalence', hue='sex',
-                ax=ax, palette=[F_COLOR, M_COLOR], alpha=0.85)
+
+    age_groups = [a for a in thisdf.age.unique()]
+    bar_specs = [
+        ('Female', F_COLOR),
+        ('Male', M_COLOR),
+    ]
+    n_bars = len(bar_specs)
+    width = 0.35
+    all_labels = list(age_groups) + ['15-65']
+    x = np.arange(len(all_labels))
+    agg_x = x[-1]
+
+    for i, (sex, color) in enumerate(bar_specs):
+        vals = []
+        errs = []
+        for age in age_groups:
+            sub = thisdf[(thisdf.age == age) & (thisdf.sex == sex)]
+            vals.append(sub['prevalence'].mean() if len(sub) > 0 else 0)
+            errs.append(sub['prevalence'].std() if len(sub) > 1 else 0)
+        # Aggregate 15-65
+        agg_sub = thisdf[thisdf.sex == sex]
+        agg_val = agg_sub.groupby('par_idx')['prevalence'].mean() if len(agg_sub) > 0 else pd.Series([0])
+        vals.append(agg_val.mean())
+        errs.append(agg_val.std() if len(agg_val) > 1 else 0)
+
+        offset = (i - (n_bars - 1) / 2) * width
+        ax.bar(x + offset, vals, width, color=color, alpha=0.85,
+               edgecolor='white', linewidth=0.5, label=sex)
+        ax.errorbar(x + offset, vals, yerr=errs, fmt='none', ecolor='grey',
+                    capsize=2, linewidth=0.8, alpha=0.7)
+
+    # Vertical separator before aggregate bar
+    ax.axvline(x=agg_x - 0.6, color='grey', linewidth=0.5, linestyle='-', alpha=0.3)
 
     # Overlay ZIMPHIA data as markers
-    age_groups = thisdf.age.unique()
-    bar_width = 0.4
-    kw_2016 = dict(marker='D', s=60, zorder=5, edgecolors='k', linewidths=0.5)
-    kw_2020 = dict(marker='s', s=60, zorder=5, edgecolors='k', linewidths=0.5)
+    f_offset = (0 - (n_bars - 1) / 2) * width
+    m_offset = (1 - (n_bars - 1) / 2) * width
+    kw_2016 = dict(marker='D', s=50, zorder=5, edgecolors='k', linewidths=0.5)
+    kw_2020 = dict(marker='s', s=50, zorder=5, edgecolors='k', linewidths=0.5)
     first_2016 = True
     first_2020 = True
-    for i, age in enumerate(age_groups):
+    for j, age in enumerate(age_groups):
         if age in ZIMPHIA_HIV_2016:
             f_val, m_val = ZIMPHIA_HIV_2016[age]
-            ax.scatter(i - bar_width/2, f_val * 100, color=F_COLOR,
+            ax.scatter(x[j] + f_offset, f_val * 100, color=F_COLOR,
                        label='ZIMPHIA 2016' if first_2016 else None, **kw_2016)
-            ax.scatter(i + bar_width/2, m_val * 100, color=M_COLOR, **kw_2016)
+            ax.scatter(x[j] + m_offset, m_val * 100, color=M_COLOR, **kw_2016)
             first_2016 = False
         if age in ZIMPHIA_HIV_2020:
             f_val, m_val = ZIMPHIA_HIV_2020[age]
-            ax.scatter(i - bar_width/2, f_val * 100, color=F_COLOR,
+            ax.scatter(x[j] + f_offset, f_val * 100, color=F_COLOR,
                        label='ZIMPHIA 2020' if first_2020 else None, **kw_2020)
-            ax.scatter(i + bar_width/2, m_val * 100, color=M_COLOR, **kw_2020)
+            ax.scatter(x[j] + m_offset, m_val * 100, color=M_COLOR, **kw_2020)
             first_2020 = False
+
+    # ZIMPHIA aggregate on 15-65 bar (2016: F=14.8%, M=8.6%; 2020: F=14.8%, M=8.6%)
+    ax.scatter(agg_x + f_offset, 14.8, color=F_COLOR, **kw_2016)
+    ax.scatter(agg_x + m_offset, 8.6, color=M_COLOR, **kw_2016)
+    ax.scatter(agg_x + f_offset, 14.8, color=F_COLOR, **kw_2020)
+    ax.scatter(agg_x + m_offset, 8.6, color=M_COLOR, **kw_2020)
 
     ax.set_title('HIV prevalence by age')
     ax.set_ylabel('Prevalence (%)')
     ax.set_xlabel('Age group')
+    ax.set_xticks(x)
+    ax.set_xticklabels(all_labels)
     ax.set_ylim(bottom=0)
     ax.legend(frameon=False, fontsize=10)
 
