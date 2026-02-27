@@ -160,8 +160,7 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
             best_pars = pars_df.iloc[par_idx].to_dict()
             print(best_pars)
             calib_pars.update(best_pars)
-        sim.init()
-        sim = make_sim_pars(sim, calib_pars)
+        sim = make_sim_pars(sim, calib_pars)  # Sets pre-init pars, then inits, then sets post-init pars
         print(f'Using calibration parameters for scenario {scenario} and index {par_idx}')
 
         # Display pars from sim
