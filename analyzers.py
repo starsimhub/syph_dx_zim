@@ -206,12 +206,13 @@ class treatment_outcomes(ss.Analyzer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = 'treatment_outcomes'
-        self.pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen', 'newborn']
+        self.pathways = ['gud_syndromic', 'anc_screen', 'secondary_rash', 'kp_screen', 'plhiv_screen', 'newborn']
         self.test_intvs = {
             'gud_syndromic': ['syndromic', 'gud_test'],
             'anc_screen': ['anc_screen'],
             'secondary_rash': ['secondary_algo'],
             'kp_screen': ['dual_hiv'],
+            'plhiv_screen': ['plhiv_screen'],
             'newborn': ['newborn_exam', 'newborn_poc'],
         }
 
@@ -236,8 +237,15 @@ class treatment_outcomes(ss.Analyzer):
             results += ss.Result(f'{pw}_missed_hivpos', dtype=int, scale=True)
             results += ss.Result(f'{pw}_missed_hivneg', dtype=int, scale=True)
 
-        # Overall active prevalence (for context)
+        # Stage at detection: per pathway, how many correctly treated were in each stage
+        self.stages = ['primary', 'secondary', 'early', 'late', 'tertiary']
+        for pw in self.pathways:
+            for stage in self.stages:
+                results += ss.Result(f'{pw}_stage_{stage}', dtype=int, scale=True)
+
+        # Overall prevalence counts (for context)
         results += ss.Result('n_active', dtype=int, scale=True)
+        results += ss.Result('n_infected', dtype=int, scale=True)
 
         self.define_results(*results)
 
@@ -283,6 +291,12 @@ class treatment_outcomes(ss.Analyzer):
             self._record(f'{pw}_unnecessary', pw_unnecessary, ti, ppl, hiv)
             self._record(f'{pw}_failure', pw_failure, ti, ppl, hiv)
 
+            # Stage at detection for correctly treated
+            tx_stages = getattr(sim, '_tx_stages', None)
+            if tx_stages is not None and len(pw_success) > 0:
+                for stage in self.stages:
+                    self.results[f'{pw}_stage_{stage}'][ti] = len(np.intersect1d(pw_success, tx_stages[stage]))
+
         # False negatives: tested negative but had active syphilis
         # Since these people weren't treated, their active state persists
         for pw, test_names in self.test_intvs.items():
@@ -293,8 +307,9 @@ class treatment_outcomes(ss.Analyzer):
                 missed = missed | (tested_neg & syph.active).uids
             self._record(f'{pw}_missed', np.asarray(missed), ti, ppl, hiv)
 
-        # Overall active prevalence
+        # Overall prevalence counts
         self.results['n_active'][ti] = count(syph.active)
+        self.results['n_infected'][ti] = count(syph.infected)
 
     def _record(self, prefix, uids, ti, ppl, hiv):
         """Record a count disaggregated by sex and HIV status"""

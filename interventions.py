@@ -37,12 +37,13 @@ class DualTest(sti.HIVTest):
     """
     Dual HIV syphilis test
     """
-    def __init__(self, product=None, syph_test=None, pars=None, test_prob_data=None, years=None, start=None, eligibility=None, name=None, label=None, **kwargs):
+    def __init__(self, product=None, syph_test=None, pars=None, test_prob_data=None, years=None, start=None, eligibility=None, name=None, label=None, syph_years=None, syph_prob=None, **kwargs):
         super().__init__(product=product, pars=pars, test_prob_data=test_prob_data, years=years, start=start, eligibility=eligibility, name=name, label=label, **kwargs)
         if self.eligibility is None:
             self.eligibility = lambda sim: ~sim.diseases.hiv.diagnosed
         self.syph_test = syph_test
-        self.syph_start = start if start is not None else 2028
+        self.syph_years = np.array(syph_years) if syph_years is not None else np.array([2022, 2023, 2030])
+        self.syph_prob = np.array(syph_prob) if syph_prob is not None else np.array([0.0, 0.1, 1.0])
 
     def step(self, uids=None):
         sim = self.sim
@@ -51,15 +52,23 @@ class DualTest(sti.HIVTest):
         sim.diseases.hiv.diagnosed[pos_uids] = True
         sim.diseases.hiv.ti_diagnosed[pos_uids] = self.ti
 
-        if self.t.now('year') >= self.syph_start and self.syph_test is not None:
-            testers = (self.ti_tested == self.ti).uids
-            if len(testers) > 0:
-                self.syph_test.ti_scheduled[testers] = self.ti
+        if self.syph_test is not None:
+            prob = np.interp(self.t.now('year'), self.syph_years, self.syph_prob)
+            if prob > 0:
+                testers = (self.ti_tested == self.ti).uids
+                if len(testers) > 0:
+                    if prob >= 1.0:
+                        selected = testers
+                    else:
+                        mask = np.random.random(len(testers)) < prob
+                        selected = testers[mask]
+                    if len(selected) > 0:
+                        self.syph_test.ti_scheduled[selected] = self.ti
 
         return outcomes
 
 
-def get_testing_products(add_dual=False):
+def get_testing_products(add_dual=False, syph_years=None, syph_prob=None):
     """
     Define HIV products and testing interventions
     """
@@ -97,6 +106,8 @@ def get_testing_products(add_dual=False):
         eligibility=fsw_eligibility,
         label='fsw_testing',
         syph_test=dual_test,
+        syph_years=syph_years,
+        syph_prob=syph_prob,
     )
 
     # Non-FSW agents who haven't been diagnosed or treated yet
@@ -131,11 +142,11 @@ def get_testing_products(add_dual=False):
     return tests
 
 
-def make_hiv_intvs(add_dual=False):
+def make_hiv_intvs(add_dual=False, syph_years=None, syph_prob=None):
 
     n_art = pd.read_csv(f'data/n_art.csv').set_index('year')
     n_vmmc = pd.read_csv(f'data/n_vmmc.csv').set_index('year')
-    tests = get_testing_products(add_dual=add_dual)
+    tests = get_testing_products(add_dual=add_dual, syph_years=syph_years, syph_prob=syph_prob)
     art = sti.ART(coverage_data=n_art, future_coverage={'year': 2022, 'prop': 0.90})
     vmmc = sti.VMMC(coverage_data=n_vmmc)
     prep = sti.Prep()
@@ -236,7 +247,7 @@ def make_scen_specs(scenario):
     return scenspecs
 
 
-def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
+def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv_years=None, plhiv_prob=None):
     """
     Define the full testing algorithm for each scenario.
     Baseline:
@@ -404,6 +415,23 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     interventions += testing_intvs
 
     ####################################################
+    # Make PLHIV-on-ART syphilis screening
+    ####################################################
+    plhiv_yrs = np.array(plhiv_years) if plhiv_years is not None else np.array([2019, 2020, 2030, 2041])
+    plhiv_prb = np.array(plhiv_prob) if plhiv_prob is not None else np.array([0.0, 0.1, 0.5, 0.5])
+
+    plhiv_screen = sti.SyphTest(
+        product=dxprods['dual'],
+        eligibility=lambda sim: (sim.diseases.hiv.on_art & sim.people.alive).uids,
+        test_prob_data=plhiv_prb,
+        years=plhiv_yrs,
+        dt_scale=True,
+        name='plhiv_screen',
+        label='plhiv_screen',
+    )
+    interventions += [plhiv_screen]
+
+    ####################################################
     # Make treatment intervention
     ####################################################
 
@@ -416,7 +444,8 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         p5 = sim.diseases.syph.tertiary
         p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
         p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti  # KP dual test
-        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7).uids
+        p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti  # PLHIV on ART
+        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
 
         # Store pathway flags for the treatment_outcomes analyzer
         # Called during treatment eligibility check, BEFORE states are cleared
@@ -431,8 +460,16 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
             anc_screen=(p1 | p4).uids,
             secondary_rash=p6.uids,
             kp_screen=p7.uids,
+            plhiv_screen=p_plhiv.uids,
             newborn=p8.uids,
         )
+
+        # Store stage at treatment for the treatment_outcomes analyzer
+        syph = sim.diseases.syph
+        all_eligible = to_treat | p8.uids
+        sim._tx_stages = sc.objdict()
+        for stage in ['primary', 'secondary', 'early', 'late', 'tertiary']:
+            sim._tx_stages[stage] = np.asarray((getattr(syph, stage) & all_eligible).uids)
 
         return to_treat
 
@@ -472,7 +509,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     return interventions
 
 
-def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
+def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, syph_years=None, syph_prob=None, plhiv_years=None, plhiv_prob=None):
     """
     Make interventions for syphilis / HIV coinfection model
     """
@@ -480,8 +517,8 @@ def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_t
 
     # HIV interventions
     if which == 'all':
-        hiv_intvs = make_hiv_intvs(add_dual=True)
-        syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test)
+        hiv_intvs = make_hiv_intvs(add_dual=True, syph_years=syph_years, syph_prob=syph_prob)
+        syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test, plhiv_years=plhiv_years, plhiv_prob=plhiv_prob)
         interventions += hiv_intvs + syph_intvs
 
     elif which == 'hiv':
