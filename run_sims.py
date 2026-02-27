@@ -165,10 +165,11 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
 
         # Display pars from sim
         for disease in pre_load_calibs:
-            print(f'\n{disease.upper()} parameters:')
-            for k, v in sim.diseases[disease].pars.items():
-                if k in best_pars:
-                    print(f'  {k}: {v} (calibrated)')
+            if disease in sim.diseases:
+                print(f'\n{disease.upper()} parameters:')
+                for k, v in sim.diseases[disease].pars.items():
+                    if k in best_pars:
+                        print(f'  {k}: {v} (calibrated)')
     return sim
 
 
@@ -230,6 +231,37 @@ def save_stats(sims, resfolder='results'):
                     dfs += pd.DataFrame(dd)
     epi_df = pd.concat(dfs)
     sc.saveobj(f'{resfolder}/epi_df.df', epi_df)
+
+    # Save SW-disaggregated prevalence by age/sex (from final sim state)
+    sw_prev_dfs = sc.autolist()
+    for sim in sims:
+        ppl = sim.people
+        nw = sim.networks.structuredsexual
+        age_bins = sim.diseases.syph.age_bins
+        fsw = nw.fsw
+        client = nw.client
+        for disease in ['syph', 'hiv']:
+            dis = sim.diseases[disease]
+            infected = dis.infected
+            if disease == 'syph':
+                active = dis.active
+            for sex_key, sex_label, sw_flag in [('female', 'Female', fsw), ('male', 'Male', client)]:
+                sex_bool = ppl[sex_key]
+                for ab1, ab2 in zip(age_bins[:-1], age_bins[1:]):
+                    age = f'{ab1}-{ab2}' if ab1 != 65 else '65+'
+                    in_age = sex_bool & ppl.alive & (ppl.age >= ab1) & (ppl.age < ab2)
+                    in_sw = in_age & sw_flag
+                    in_non_sw = in_age & ~sw_flag
+                    for sw_label, mask in [('SW', in_sw), ('Non-SW', in_non_sw), ('Overall', in_age)]:
+                        n = mask.count()
+                        prev = float(np.mean(infected[mask])) if n > 0 else np.nan
+                        dd = dict(age=[age], sex=sex_label, sw_group=sw_label,
+                                  disease=disease, prevalence=prev, par_idx=sim.par_idx)
+                        if disease == 'syph':
+                            dd['active_prevalence'] = float(np.mean(active[mask])) if n > 0 else np.nan
+                        sw_prev_dfs += pd.DataFrame(dd)
+    sw_prev_df = pd.concat(sw_prev_dfs)
+    sc.saveobj(f'{resfolder}/sw_prev_df.df', sw_prev_df)
 
     # Save time series of syphilis and HIV infections and prevalence
     ts_dfs = sc.autolist()
