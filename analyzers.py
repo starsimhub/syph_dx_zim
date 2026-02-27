@@ -147,12 +147,12 @@ class epi_ts(ss.Analyzer):
             ss.Result('syph.new_infections_m', dtype=float),
             ss.Result('hiv.new_infections_f', dtype=float),
             ss.Result('hiv.new_infections_m', dtype=float),
-            ss.Result('syph.prevalence_fsw', dtype=float, scale=False),
-            ss.Result('syph.active_prevalence_fsw', dtype=float, scale=False),
-            ss.Result('syph.prevalence_client', dtype=float, scale=False),
-            ss.Result('syph.ever_exposed_f', dtype=float, scale=False),
-            ss.Result('syph.ever_exposed_m', dtype=float, scale=False),
-            ss.Result('syph.ever_exposed_fsw', dtype=float, scale=False),
+            ss.Result('syph_prevalence_fsw', dtype=float, scale=False),
+            ss.Result('syph_active_prevalence_fsw', dtype=float, scale=False),
+            ss.Result('syph_prevalence_client', dtype=float, scale=False),
+            ss.Result('syph_ever_exposed_f', dtype=float, scale=False),
+            ss.Result('syph_ever_exposed_m', dtype=float, scale=False),
+            ss.Result('syph_ever_exposed_fsw', dtype=float, scale=False),
         ]
         self.define_results(*results)
         return
@@ -168,14 +168,14 @@ class epi_ts(ss.Analyzer):
         fsw = nw.fsw & ppl.alive
         n_fsw = fsw.count()
         if n_fsw > 0:
-            self.results['syph.prevalence_fsw'][ti] = float(np.mean(syph.infected[fsw]))
-            self.results['syph.active_prevalence_fsw'][ti] = float(np.mean(syph.active[fsw]))
+            self.results['syph_prevalence_fsw'][ti] = float(np.mean(syph.infected[fsw]))
+            self.results['syph_active_prevalence_fsw'][ti] = float(np.mean(syph.active[fsw]))
 
         # Client syphilis prevalence
         client = nw.client & ppl.alive
         n_client = client.count()
         if n_client > 0:
-            self.results['syph.prevalence_client'][ti] = float(np.mean(syph.infected[client]))
+            self.results['syph_prevalence_client'][ti] = float(np.mean(syph.infected[client]))
 
         # Ever-exposed (would test positive on treponemal/dual test even if treated)
         alive = ppl.alive
@@ -184,11 +184,11 @@ class epi_ts(ss.Analyzer):
         n_f = female.count()
         n_m = male.count()
         if n_f > 0:
-            self.results['syph.ever_exposed_f'][ti] = float(np.mean(syph.ever_exposed[female]))
+            self.results['syph_ever_exposed_f'][ti] = float(np.mean(syph.ever_exposed[female]))
         if n_m > 0:
-            self.results['syph.ever_exposed_m'][ti] = float(np.mean(syph.ever_exposed[male]))
+            self.results['syph_ever_exposed_m'][ti] = float(np.mean(syph.ever_exposed[male]))
         if n_fsw > 0:
-            self.results['syph.ever_exposed_fsw'][ti] = float(np.mean(syph.ever_exposed[fsw]))
+            self.results['syph_ever_exposed_fsw'][ti] = float(np.mean(syph.ever_exposed[fsw]))
 
     def finalize(self):
         super().finalize()
