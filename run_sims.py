@@ -3,6 +3,7 @@ Run syphilis-HIV coinfection model
 """
 
 # %% Imports and settings
+import numpy as np
 import sciris as sc
 import pandas as pd
 import starsim as ss
