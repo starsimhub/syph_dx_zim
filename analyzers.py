@@ -153,6 +153,8 @@ class epi_ts(ss.Analyzer):
             ss.Result('syph_ever_exposed_f', dtype=float, scale=False),
             ss.Result('syph_ever_exposed_m', dtype=float, scale=False),
             ss.Result('syph_ever_exposed_fsw', dtype=float, scale=False),
+            ss.Result('syph_pct_reinfected', dtype=float, scale=False),
+            ss.Result('syph_mean_n_infections', dtype=float, scale=False),
         ]
         self.define_results(*results)
         return
@@ -189,6 +191,14 @@ class epi_ts(ss.Analyzer):
             self.results['syph_ever_exposed_m'][ti] = float(np.mean(syph.ever_exposed[male]))
         if n_fsw > 0:
             self.results['syph_ever_exposed_fsw'][ti] = float(np.mean(syph.ever_exposed[fsw]))
+
+        # Reinfection stats among ever-exposed alive adults
+        ever_exp_alive = syph.ever_exposed & ppl.alive
+        n_ever_exp = ever_exp_alive.count()
+        if n_ever_exp > 0:
+            n_inf_vals = syph.n_infections[ever_exp_alive]
+            self.results['syph_pct_reinfected'][ti] = float(np.mean(n_inf_vals > 1))
+            self.results['syph_mean_n_infections'][ti] = float(np.mean(n_inf_vals))
 
     def finalize(self):
         super().finalize()

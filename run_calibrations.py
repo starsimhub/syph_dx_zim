@@ -92,6 +92,9 @@ def make_calibration(which='hiv'):
             'epi_ts.syph_ever_exposed_f',
             'epi_ts.syph_ever_exposed_m',
             'epi_ts.syph_ever_exposed_fsw',
+            'epi_ts.syph_pct_reinfected',
+            'epi_ts.syph_mean_n_infections',
+            'syph.new_reinfections',
             'syph.new_treated',
             'syph.new_treated_unnecessary',
             'syph.new_congenital',
@@ -137,6 +140,12 @@ def make_calibration(which='hiv'):
     data = pd.read_csv(f'data/{LOCATION}_{which}_data.csv')
 
     weights = {
+        # HIV — upweighted to prevent bimodal calibration (bad HIV + good syphilis)
+        'hiv.prevalence_15_49': 5.0,
+        'hiv.n_infected': 2.0,
+        'hiv.new_infections': 2.0,
+        'hiv.n_on_art': 2.0,
+        # Syphilis
         'syph.n_active': 10.0,
         'syph.new_infections': 10.0,
         'syph.active_prevalence': 10.0,
@@ -156,18 +165,24 @@ def make_calibration(which='hiv'):
         force = beta * rtp * (1 - eff)
         return force < 0.5  # Prune if effective force is too low
 
-    # Post-sim check: reject trials where syphilis actually died out
-    def check_syph_alive(sim):
+    # Post-sim check: reject trials where syphilis died out or HIV prevalence is too low
+    def check_sim_alive(sim):
         if sim is None:
             return False
+        # Check syphilis didn't die out
         if 'syph' in sim.diseases:
             syph_ni = sim.results.syph.new_infections[-60:]
             if np.sum(syph_ni) == 0:
                 return False
+        # Check HIV prevalence isn't implausibly low (bimodal calibration fix)
+        if 'hiv' in sim.diseases:
+            hiv_prev = sim.results.hiv.prevalence_15_49[-60:]
+            if np.median(hiv_prev) < 0.05:  # Reject if HIV prev < 5% in last 5 years
+                return False
         return True
 
     prune_fn = prune_low_syph_transmission if which in ['syph', 'all'] else None
-    check_fn = check_syph_alive if which in ['syph', 'all'] else None
+    check_fn = check_sim_alive if which in ['syph', 'all'] else None
 
     # Make the calibration — use continue_db and keep_db for HPC crash recovery
     calib = sti.Calibration(
@@ -179,7 +194,7 @@ def make_calibration(which='hiv'):
         data=data,
         prune_fn=prune_fn,
         check_fn=check_fn,
-        study_name=f'{LOCATION}_{which}_calibration_v16',
+        study_name=f'{LOCATION}_{which}_calibration_v17',
         total_trials=TOTAL_TRIALS,
         die=False, reseed=False, storage=storage, save_results=True,
         continue_db=True, keep_db=True,

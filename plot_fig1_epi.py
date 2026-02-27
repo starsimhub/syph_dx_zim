@@ -27,7 +27,7 @@ ZIMPHIA_SYPH = dict(
 # WHO GHO: syphilis prevalence among FSW in Zimbabwe (~30%)
 WHO_FSW_SYPH_PREV = 0.30
 # ZIMPHIA 2015-2016 HIV prevalence by age/sex (from published ZIMPHIA report)
-ZIMPHIA_HIV = {
+ZIMPHIA_HIV_2016 = {
     # age_group: (female, male)
     '15-20': (0.040, 0.025),
     '20-25': (0.077, 0.034),
@@ -35,6 +35,17 @@ ZIMPHIA_HIV = {
     '30-35': (0.207, 0.148),
     '35-50': (0.233, 0.207),
     '50-65': (0.130, 0.142),
+}
+# ZIMPHIA 2020 HIV prevalence by age/sex (Summary Sheet, Dec 2020)
+# Mapped to model age bins by averaging 5-year ZIMPHIA groups
+ZIMPHIA_HIV_2020 = {
+    # age_group: (female, male)
+    '15-20': (0.038, 0.021),
+    '20-25': (0.064, 0.028),
+    '25-30': (0.106, 0.040),
+    '30-35': (0.184, 0.093),
+    '35-50': (0.295, 0.208),   # avg of 35-39, 40-44, 45-49
+    '50-65': (0.250, 0.251),   # avg of 50-54, 55-59, 60-64
 }
 
 # Colors — sex-disaggregated
@@ -229,7 +240,7 @@ def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019
 
 
 def plot_hiv_prev_by_age(epi_df, ax):
-    """Panel F: HIV prevalence by age and sex + ZIMPHIA"""
+    """Panel F: HIV prevalence by age and sex + ZIMPHIA 2016 & 2020"""
     thisdf = epi_df.loc[(epi_df.disease == 'hiv') &
                         (epi_df.age != '0-15') &
                         (epi_df.age != '65+')].copy()
@@ -240,21 +251,29 @@ def plot_hiv_prev_by_age(epi_df, ax):
     # Overlay ZIMPHIA data as markers
     age_groups = thisdf.age.unique()
     bar_width = 0.4
-    first = True
+    kw_2016 = dict(marker='D', s=60, zorder=5, edgecolors='k', linewidths=0.5)
+    kw_2020 = dict(marker='s', s=60, zorder=5, edgecolors='k', linewidths=0.5)
+    first_2016 = True
+    first_2020 = True
     for i, age in enumerate(age_groups):
-        if age in ZIMPHIA_HIV:
-            f_val, m_val = ZIMPHIA_HIV[age]
-            kw = dict(marker='D', s=60, zorder=5, edgecolors='k', linewidths=0.5)
+        if age in ZIMPHIA_HIV_2016:
+            f_val, m_val = ZIMPHIA_HIV_2016[age]
             ax.scatter(i - bar_width/2, f_val * 100, color=F_COLOR,
-                       label='ZIMPHIA 2016' if first else None, **kw)
-            ax.scatter(i + bar_width/2, m_val * 100, color=M_COLOR, **kw)
-            first = False
+                       label='ZIMPHIA 2016' if first_2016 else None, **kw_2016)
+            ax.scatter(i + bar_width/2, m_val * 100, color=M_COLOR, **kw_2016)
+            first_2016 = False
+        if age in ZIMPHIA_HIV_2020:
+            f_val, m_val = ZIMPHIA_HIV_2020[age]
+            ax.scatter(i - bar_width/2, f_val * 100, color=F_COLOR,
+                       label='ZIMPHIA 2020' if first_2020 else None, **kw_2020)
+            ax.scatter(i + bar_width/2, m_val * 100, color=M_COLOR, **kw_2020)
+            first_2020 = False
 
     ax.set_title('HIV prevalence by age')
     ax.set_ylabel('Prevalence (%)')
     ax.set_xlabel('Age group')
     ax.set_ylim(bottom=0)
-    ax.legend(frameon=False, fontsize=11)
+    ax.legend(frameon=False, fontsize=10)
 
 
 if __name__ == '__main__':
