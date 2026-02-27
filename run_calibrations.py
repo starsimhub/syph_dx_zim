@@ -154,7 +154,7 @@ def make_calibration(which='hiv'):
         rtp = pars.get('syph_rel_trans_primary', {}).get('value', 5)
         eff = pars.get('syph_eff_condom', {}).get('value', 0.5)
         force = beta * rtp * (1 - eff)
-        return force < 0.3  # Prune if effective force is too low
+        return force < 0.5  # Prune if effective force is too low
 
     # Post-sim check: reject trials where syphilis actually died out
     def check_syph_alive(sim):
