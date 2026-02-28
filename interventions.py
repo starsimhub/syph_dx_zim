@@ -237,6 +237,7 @@ def make_scen_specs(scenario):
         ScenSpec(name='soc',    symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='gud',    symp_algo='gud',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='conf',   symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='both',   symp_algo='gud',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='cs',     symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='dx_cs'),
         ScenSpec(name='no',     symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
     ]
@@ -383,11 +384,23 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
     )
 
     # Positive results on dual test may be given a confirmatory test
+    # In conf/both scenarios, ALL screening positives (ANC + KP + PLHIV) go through confirmation
+    use_confirmation = scenario in ['conf', 'both']
+
     if orig_scenario == 'soc+scaleup':
         def to_confirm(sim):
             p1 = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
             p2 = sim.interventions['dual_hiv'].outcomes['positive'] == sim.interventions['dual_hiv'].ti
             return (p1 | p2).uids
+    elif use_confirmation:
+        def to_confirm(sim):
+            p_anc = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
+            p_kp = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
+            p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
+            # Store origins for pathway attribution in to_treat()
+            sim._conf_origin_kp = p_kp.uids
+            sim._conf_origin_plhiv = p_plhiv.uids
+            return (p_anc | p_kp | p_plhiv).uids
     else:
         def to_confirm(sim):
             p1 = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
@@ -409,13 +422,9 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         label='confirm',
     )
 
-    testing_intvs = [
-        syndromic, gud, conf_algo, confirm
-    ]
-    interventions += testing_intvs
-
     ####################################################
     # Make PLHIV-on-ART syphilis screening
+    # NB: must run BEFORE conf_algo so outcomes are available for to_confirm
     ####################################################
     plhiv_yrs = np.array(plhiv_years) if plhiv_years is not None else np.array([2019, 2020, 2030, 2041])
     plhiv_prb = np.array(plhiv_prob) if plhiv_prob is not None else np.array([0.0, 0.1, 0.5, 0.5])
@@ -429,7 +438,11 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         name='plhiv_screen',
         label='plhiv_screen',
     )
-    interventions += [plhiv_screen]
+
+    testing_intvs = [
+        syndromic, gud, plhiv_screen, conf_algo, confirm
+    ]
+    interventions += testing_intvs
 
     ####################################################
     # Make treatment intervention
@@ -443,26 +456,48 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         p4 = sim.interventions['confirm'].outcomes['positive'] == sim.interventions['confirm'].ti
         p5 = sim.diseases.syph.tertiary
         p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
-        p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti  # KP dual test
-        p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti  # PLHIV on ART
-        to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
+
+        if use_confirmation:
+            # In conf/both: KP and PLHIV go through conf_algo, NOT directly to treatment
+            to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
+        else:
+            p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
+            p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
+            to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
 
         # Store pathway flags for the treatment_outcomes analyzer
         # Called during treatment eligibility check, BEFORE states are cleared
-        # Newborn pathway flags stored here too (from newborn_treat eligibility)
         p8_direct = sim.interventions['newborn_algo'].outcomes.get('treat', ss.uids()) == sim.interventions['newborn_algo'].ti
         p8_exam = sim.interventions['newborn_exam'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_exam'].ti
         p8_poc = sim.interventions['newborn_poc'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_poc'].ti
         p8 = p8_direct | p8_exam | p8_poc
 
-        sim._tx_pathways = sc.objdict(
-            gud_syndromic=(p2 | p3).uids,
-            anc_screen=(p1 | p4).uids,
-            secondary_rash=p6.uids,
-            kp_screen=p7.uids,
-            plhiv_screen=p_plhiv.uids,
-            newborn=p8.uids,
-        )
+        if use_confirmation:
+            # Attribute conf_algo/confirm outcomes back to originating pathway
+            conf_treated_uids = np.asarray((p1 | p4).uids)
+            kp_origin = np.asarray(getattr(sim, '_conf_origin_kp', ss.uids()))
+            plhiv_origin = np.asarray(getattr(sim, '_conf_origin_plhiv', ss.uids()))
+            kp_from_conf = ss.uids(np.intersect1d(conf_treated_uids, kp_origin))
+            plhiv_from_conf = ss.uids(np.intersect1d(conf_treated_uids, plhiv_origin))
+            anc_from_conf = ss.uids(np.setdiff1d(np.setdiff1d(conf_treated_uids, kp_origin), plhiv_origin))
+
+            sim._tx_pathways = sc.objdict(
+                gud_syndromic=(p2 | p3).uids,
+                anc_screen=anc_from_conf,
+                secondary_rash=p6.uids,
+                kp_screen=kp_from_conf,
+                plhiv_screen=plhiv_from_conf,
+                newborn=p8.uids,
+            )
+        else:
+            sim._tx_pathways = sc.objdict(
+                gud_syndromic=(p2 | p3).uids,
+                anc_screen=(p1 | p4).uids,
+                secondary_rash=p6.uids,
+                kp_screen=p7.uids,
+                plhiv_screen=p_plhiv.uids,
+                newborn=p8.uids,
+            )
 
         # Store stage at treatment for the treatment_outcomes analyzer
         syph = sim.diseases.syph

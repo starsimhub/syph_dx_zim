@@ -168,7 +168,7 @@ def save_treatment_outcomes(sims, scenario):
 
 if __name__ == '__main__':
 
-    scenarios = ['soc']  # Start with SOC only
+    scenarios = ['soc', 'gud', 'conf', 'both']
     n_pars = 20  # Top 20 parameter sets by effective force
     seeds_per_par = 5  # Try 5 seeds each
 
