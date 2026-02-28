@@ -182,14 +182,19 @@ def save_treatment_outcomes(sims, scenario):
 
 if __name__ == '__main__':
 
-    scenarios = ['soc', 'gud', 'conf', 'both', 'cs']
-    n_pars = 10  # Top 10 parameter sets by effective force
-    seeds_per_par = 1  # Single seed (no variation)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--scenario', type=str, default=None, help='Run a single scenario (soc/gud/conf/both/cs)')
+    parser.add_argument('--n_pars', type=int, default=10)
+    parser.add_argument('--seeds', type=int, default=1)
+    args = parser.parse_args()
+
+    scenarios = [args.scenario] if args.scenario else ['soc', 'gud', 'conf', 'both', 'cs']
 
     for scenario in scenarios:
         sims = run_scenario(
             scenario=scenario,
-            n_pars=n_pars,
-            seeds_per_par=seeds_per_par,
+            n_pars=args.n_pars,
+            seeds_per_par=args.seeds,
             stop=2041,
         )
