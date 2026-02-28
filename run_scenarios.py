@@ -191,10 +191,43 @@ if __name__ == '__main__':
 
     scenarios = [args.scenario] if args.scenario else ['soc', 'gud', 'conf', 'both', 'cs']
 
+    # Run all scenarios, building all sims first then running in one parallel batch
+    from run_sims import make_sim, _extract_value
+    all_sims = sc.autolist()
     for scenario in scenarios:
-        sims = run_scenario(
-            scenario=scenario,
-            n_pars=args.n_pars,
-            seeds_per_par=args.seeds,
-            stop=2041,
-        )
+        pars_df = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_pars_all.df')
+        pars_df['eff_force'] = pars_df['syph_beta_m2f'] * pars_df['syph_rel_trans_primary'] * (1 - pars_df['syph_eff_condom'])
+        pars_df = pars_df.sort_values('eff_force', ascending=False).reset_index(drop=True)
+        n_pars = min(args.n_pars, len(pars_df))
+
+        for par_idx in range(n_pars):
+            calib_pars = pars_df.iloc[par_idx].to_dict()
+            base = make_sim(dislist='all', scenario=scenario, seed=1, start=1985, stop=2041, verbose=-1)
+            set_preinit_pars(base, calib_pars)
+            for intv in base.pars.interventions:
+                name = getattr(intv, 'name', '')
+                if name == 'symp_algo':
+                    intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_symp_test', 1.0)) or 1.0
+                elif name == 'anc_screen':
+                    intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_anc_test', 1.0)) or 1.0
+                elif name == 'dual_hiv':
+                    intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_kp_test', 1.0)) or 1.0
+            base.pars['rand_seed'] = 1
+            base.par_idx = par_idx
+            base.scenario = scenario
+            all_sims += base
+
+    print(f'Created {len(all_sims)} sims across {len(scenarios)} scenarios, running in parallel...')
+    all_sims = ss.parallel(all_sims).sims
+    print(f'Completed {len(all_sims)} simulations')
+
+    # Group by scenario, filter, save
+    for scenario in scenarios:
+        scen_sims = [s for s in all_sims if s.scenario == scenario]
+        kept = [s for s in scen_sims if check_syph_alive(s)]
+        n_died = len(scen_sims) - len(kept)
+        if n_died:
+            print(f'  {scenario}: dropped {n_died}/{len(scen_sims)} (syphilis died)')
+        print(f'  {scenario}: kept {len(kept)}')
+        if len(kept) > 0:
+            save_treatment_outcomes(kept, scenario)
