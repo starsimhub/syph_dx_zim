@@ -284,80 +284,70 @@ def plot_syph_hiv_ratio_ts(cs, ax, start_year=1995):
     ax.set_xlim(start_year, 2025)
 
 
-def plot_hiv_prev_by_age(epi_df, ax):
-    """HIV prevalence by age and sex + ZIMPHIA 2016 & 2020, with 15-65 aggregate"""
-    thisdf = epi_df.loc[(epi_df.disease == 'hiv') &
-                        (epi_df.age != '0-15') &
-                        (epi_df.age != '65+')].copy()
-    thisdf['prevalence'] *= 100
-
-    age_groups = [a for a in thisdf.age.unique()]
-    bar_specs = [
-        ('Female', F_COLOR),
-        ('Male', M_COLOR),
-    ]
-    n_bars = len(bar_specs)
+def plot_hiv_prev_by_age_lines(cs, fig, inner_gs):
+    """HIV prevalence by age as 4 stacked mini-panels, one per year snapshot"""
+    age_bins = [(15, 20), (20, 25), (25, 30), (30, 35), (35, 50), (50, 65)]
+    age_labels = ['15-20', '20-25', '25-30', '30-35', '35-50', '50-65']
+    x = np.arange(len(age_bins))
     width = 0.35
-    all_labels = list(age_groups) + ['15-65']
-    x = np.arange(len(all_labels))
-    agg_x = x[-1]
 
-    for i, (sex, color) in enumerate(bar_specs):
-        vals = []
-        errs = []
-        for age in age_groups:
-            sub = thisdf[(thisdf.age == age) & (thisdf.sex == sex)]
-            vals.append(sub['prevalence'].mean() if len(sub) > 0 else 0)
-            errs.append(sub['prevalence'].std() if len(sub) > 1 else 0)
-        # Aggregate 15-65
-        agg_sub = thisdf[thisdf.sex == sex]
-        agg_val = agg_sub.groupby('par_idx')['prevalence'].mean() if len(agg_sub) > 0 else pd.Series([0])
-        vals.append(agg_val.mean())
-        errs.append(agg_val.std() if len(agg_val) > 1 else 0)
+    year_specs = [
+        (2005, 'Pre-ART', None, None),
+        (2016, '2016', ZIMPHIA_HIV_2016, 'D'),
+        (2020, '2020', ZIMPHIA_HIV_2020, 's'),
+        (2025, '2025 (proj.)', None, None),
+    ]
 
-        offset = (i - (n_bars - 1) / 2) * width
-        ax.bar(x + offset, vals, width, color=color, alpha=0.85,
-               edgecolor='white', linewidth=0.5, label=sex)
-        ax.errorbar(x + offset, vals, yerr=errs, fmt='none', ecolor='grey',
-                    capsize=2, linewidth=0.8, alpha=0.7)
+    ymax = 40  # Shared y-axis
 
-    # Vertical separator before aggregate bar
-    ax.axvline(x=agg_x - 0.6, color='grey', linewidth=0.5, linestyle='-', alpha=0.3)
+    for idx, (year, label, zimphia, marker) in enumerate(year_specs):
+        ax = fig.add_subplot(inner_gs[idx])
 
-    # Overlay ZIMPHIA data as markers
-    f_offset = (0 - (n_bars - 1) / 2) * width
-    m_offset = (1 - (n_bars - 1) / 2) * width
-    kw_2016 = dict(marker='D', s=50, zorder=5, edgecolors='k', linewidths=0.5)
-    kw_2020 = dict(marker='s', s=50, zorder=5, edgecolors='k', linewidths=0.5)
-    first_2016 = True
-    first_2020 = True
-    for j, age in enumerate(age_groups):
-        if age in ZIMPHIA_HIV_2016:
-            f_val, m_val = ZIMPHIA_HIV_2016[age]
-            ax.scatter(x[j] + f_offset, f_val * 100, color=F_COLOR,
-                       label='ZIMPHIA 2016' if first_2016 else None, **kw_2016)
-            ax.scatter(x[j] + m_offset, m_val * 100, color=M_COLOR, **kw_2016)
-            first_2016 = False
-        if age in ZIMPHIA_HIV_2020:
-            f_val, m_val = ZIMPHIA_HIV_2020[age]
-            ax.scatter(x[j] + f_offset, f_val * 100, color=F_COLOR,
-                       label='ZIMPHIA 2020' if first_2020 else None, **kw_2020)
-            ax.scatter(x[j] + m_offset, m_val * 100, color=M_COLOR, **kw_2020)
-            first_2020 = False
+        if year not in cs.index:
+            ax.text(0.5, 0.5, f'{year}: no data', transform=ax.transAxes, ha='center')
+            continue
 
-    # ZIMPHIA aggregate on 15-65 bar
-    ax.scatter(agg_x + f_offset, 14.8, color=F_COLOR, **kw_2016)
-    ax.scatter(agg_x + m_offset, 8.6, color=M_COLOR, **kw_2016)
-    ax.scatter(agg_x + f_offset, 14.8, color=F_COLOR, **kw_2020)
-    ax.scatter(agg_x + m_offset, 8.6, color=M_COLOR, **kw_2020)
+        f_vals = []
+        m_vals = []
+        for lo, hi in age_bins:
+            f_col = f'epi_ts.hiv_prev_f_{lo}_{hi}'
+            m_col = f'epi_ts.hiv_prev_m_{lo}_{hi}'
+            f_vals.append(cs.loc[year, (f_col, '50%')] * 100 if f_col in cs.columns.get_level_values(0) else 0)
+            m_vals.append(cs.loc[year, (m_col, '50%')] * 100 if m_col in cs.columns.get_level_values(0) else 0)
 
-    ax.set_title('HIV prevalence by age')
-    ax.set_ylabel('Prevalence (%)')
-    ax.set_xlabel('Age group')
-    ax.set_xticks(x)
-    ax.set_xticklabels(all_labels)
-    ax.set_ylim(bottom=0)
-    ax.legend(frameon=False, fontsize=10)
+        ax.bar(x - width/2, f_vals, width, color=F_COLOR, alpha=0.85, edgecolor='white', linewidth=0.5)
+        ax.bar(x + width/2, m_vals, width, color=M_COLOR, alpha=0.85, edgecolor='white', linewidth=0.5)
+
+        # ZIMPHIA overlay
+        if zimphia is not None:
+            kw = dict(s=50, zorder=5, edgecolors='k', linewidths=0.5, marker=marker)
+            for j, al in enumerate(age_labels):
+                if al in zimphia:
+                    f_val, m_val = zimphia[al]
+                    ax.scatter(x[j] - width/2, f_val * 100, color=F_COLOR, **kw)
+                    ax.scatter(x[j] + width/2, m_val * 100, color=M_COLOR, **kw)
+
+        ax.set_ylim(0, ymax)
+        ax.set_xlim(-0.6, len(age_bins) - 0.4)
+
+        # Year label inside panel
+        ax.text(0.98, 0.85, label, transform=ax.transAxes, ha='right', va='top',
+                fontsize=13, fontweight='bold')
+
+        # Only show x labels on bottom panel
+        if idx == len(year_specs) - 1:
+            ax.set_xticks(x)
+            ax.set_xticklabels(age_labels, fontsize=11)
+            ax.set_xlabel('Age group')
+        else:
+            ax.set_xticks(x)
+            ax.set_xticklabels([])
+
+        # Only show y label on middle panels
+        if idx == 1:
+            ax.set_ylabel('HIV prevalence (%)')
+
+        ax.tick_params(labelsize=11)
 
 
 if __name__ == '__main__':
@@ -386,8 +376,10 @@ if __name__ == '__main__':
     plot_transmission_by_stage_bars(cs, ax)
 
     # --- Row 2: HIV + coinfection ---
-    ax = fig.add_subplot(gs[1, 0])
-    plot_hiv_prev_by_age(epi_df, ax)
+    # Panel D: 4 stacked mini-panels for HIV by age at different years
+    from matplotlib.gridspec import GridSpecFromSubplotSpec
+    inner_gs = GridSpecFromSubplotSpec(4, 1, subplot_spec=gs[1, 0], hspace=0.08)
+    plot_hiv_prev_by_age_lines(cs, fig, inner_gs)
 
     ax = fig.add_subplot(gs[1, 1])
     plot_infections_by_sw_pct(sw_df, disease='hiv', ax=ax)
@@ -395,7 +387,14 @@ if __name__ == '__main__':
     ax = fig.add_subplot(gs[1, 2])
     plot_syph_hiv_ratio_ts(cs, ax)
 
-    for i, ax in enumerate(fig.axes):
+    # Label panels: A-C for row 1, D for the stacked mini-panels, E-F for rest of row 2
+    main_axes = [fig.axes[0], fig.axes[1], fig.axes[2]]  # A, B, C
+    # The inner mini-panels are axes 3-6; label only the first one as D
+    main_axes.append(fig.axes[3])  # D (top mini-panel)
+    # E and F are the last two main axes
+    main_axes.append(fig.axes[7])  # E (HIV infections)
+    main_axes.append(fig.axes[8])  # F (ratio)
+    for i, ax in enumerate(main_axes):
         ax.text(-0.10, 1.06, chr(65 + i), transform=ax.transAxes,
                 fontsize=28, fontweight='bold', va='top')
 
