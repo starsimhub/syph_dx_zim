@@ -1,7 +1,7 @@
 algorithm,scenario,products,2000,2020,2027,2028
-symp_testing,soc,syndromic,1,1,1,1
+symp_testing,soc,syndromic_gud,1,1,1,1
 symp_testing,soc,gud,,,,
-symp_testing,gud,syndromic,1,1,1,
+symp_testing,gud,syndromic_gud,1,1,1,
 symp_testing,gud,gud,,,,1
 anc_confirm,soc,treat,0.7,0.7,0.7,0.7
 anc_confirm,soc,confirm,,,,
@@ -9,3 +9,11 @@ anc_confirm,soc,nothing,0.3,0.3,0.3,0.3
 anc_confirm,conf,treat,0.7,0.7,0.7,0
 anc_confirm,conf,confirm,,,,0.95
 anc_confirm,conf,nothing,0.3,0.3,0.3,0.05
+newborn_testing,soc,treat,0.1,0.1,0.1,0.1
+newborn_testing,soc,exam,0.1,0.1,0.1,0.1
+newborn_testing,soc,poc_cs,0,,,
+newborn_testing,soc,nothing,0.8,0.8,0.8,0.8
+newborn_testing,cs,treat,0.1,0.1,0.1,0
+newborn_testing,cs,exam,0.1,0.1,0.1,
+newborn_testing,cs,poc_cs,,,,1
+newborn_testing,cs,nothing,0.8,0.8,0.8,

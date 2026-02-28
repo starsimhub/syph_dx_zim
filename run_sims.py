@@ -3,6 +3,7 @@ Run syphilis-HIV coinfection model
 """
 
 # %% Imports and settings
+import numpy as np
 import sciris as sc
 import pandas as pd
 import starsim as ss
@@ -20,52 +21,86 @@ RESULTS_DIR = 'results'
 FIGURES_DIR = 'figures'
 
 
+def _extract_value(pars):
+    """ Extract value from a calibration parameter dict or scalar """
+    if isinstance(pars, dict):
+        return pars['value']
+    elif sc.isnumber(pars):
+        return pars
+    return None
+
+
+def _get_disease(sim, name):
+    """ Get a disease module by name, works both before and after sim.init() """
+    if sim.initialized:
+        return sim.diseases[name]
+    for d in sim.pars.diseases:
+        if d.name == name:
+            return d
+    return None
+
+
+def _get_network(sim, name):
+    """ Get a network by name, works both before and after sim.init() """
+    if sim.initialized:
+        return sim.networks[name]
+    for n in sim.pars.networks:
+        if n.name == name:
+            return n
+    return None
+
+
+def _get_connector(sim, name):
+    """ Get a connector by name, works both before and after sim.init() """
+    connectors = sim.connectors if sim.initialized else sim.pars.connectors
+    if connectors is not None:
+        for c in connectors:
+            if type(c).__name__ == name:
+                return c
+    return None
+
+
 def make_sim_pars(sim, calib_pars):
-    if not sim.initialized: sim.init()
-    hiv = sim.diseases.hiv
-    nw = sim.networks.structuredsexual
-    if 'syph' in sim.diseases:
-        syph = sim.diseases.syph
-        symp_test = sim.interventions.symp_algo
-        anc_test = sim.interventions.anc_screen
-        kp_test = sim.interventions.dual_hiv
-
-    # Apply the calibration parameters
-    for k, pars in calib_pars.items():  # Loop over the calibration parameters
-        if k == 'rand_seed':
-            sim.pars.rand_seed = v
+    # Set disease/network/connector pars BEFORE init (needed for rel_init_prev, etc.)
+    for k, pars in calib_pars.items():
+        if k in ['rand_seed', 'index', 'mismatch']:
             continue
-
-        elif k in ['index', 'mismatch']:
+        v = _extract_value(pars)
+        if v is None:
             continue
-
-        if isinstance(pars, dict):
-            v = pars['value']
-        elif sc.isnumber(pars):
-            v = pars
-        else:
-            raise NotImplementedError(f'Parameter {k} not recognized')
-
-        if 'syph_' in k:  # Syphilis parameters
-            k = k.replace('syph_', '')  # Strip off indentifying part of parameter name
-            syph.pars[k] = v
-        elif 'hiv_' in k:  # HIV parameters
-            k = k.replace('hiv_', '')  # Strip off indentifying part of parameter name
-            hiv.pars[k] = v
-        elif 'nw_' in k:  # Network parameters
-            k = k.replace('nw_', '')  # As above
-            if 'pair_form' in k:
-                nw.pars[k].set(v)
+        if 'syph_' in k:
+            _get_disease(sim, 'syph').pars[k.replace('syph_', '')] = v
+        elif 'hiv_' in k:
+            _get_disease(sim, 'hiv').pars[k.replace('hiv_', '')] = v
+        elif 'nw_' in k:
+            nw = _get_network(sim, 'structuredsexual')
+            par_name = k.replace('nw_', '')
+            if hasattr(nw.pars[par_name], 'set'):
+                nw.pars[par_name].set(v)
             else:
-                nw.pars[k] = v
-        elif k == 'rel_symp_test':
-            symp_test.pars['rel_test'] = v
+                nw.pars[par_name] = v
+        elif 'conn_' in k:
+            conn = _get_connector(sim, 'hiv_syph')
+            par_name = k.replace('conn_', '')
+            conn.pars[par_name] = v
+
+    # Now initialize (uses updated rel_init_prev, etc.)
+    if not sim.initialized:
+        sim.init()
+
+    # Set intervention pars (only accessible after init)
+    for k, pars in calib_pars.items():
+        if k in ['rand_seed', 'index', 'mismatch']:
+            continue
+        v = _extract_value(pars)
+        if v is None:
+            continue
+        if k == 'rel_symp_test':
+            sim.interventions.symp_algo.pars['rel_test'] = v
         elif k == 'rel_anc_test':
-            anc_test.pars['rel_test'] = v
+            sim.interventions.anc_screen.pars['rel_test'] = v
         elif k == 'rel_kp_test':
-            kp_test.pars['rel_test'] = v
-        else:
-            raise NotImplementedError(f'Parameter {k} not recognized')
+            sim.interventions.dual_hiv.pars['rel_test'] = v
 
     return sim
 
@@ -84,6 +119,8 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
         m2_conc=0.5,
         p_pair_form=0.5,
         condom_data=pd.read_csv(f'data/condom_use.csv'),
+        fsw_shares=ss.bernoulli(p=0.10),
+        client_shares=ss.bernoulli(p=0.20),
     )
     maternal = ss.MaternalNet()
     networks = [sexual, maternal]
@@ -123,16 +160,16 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
             best_pars = pars_df.iloc[par_idx].to_dict()
             print(best_pars)
             calib_pars.update(best_pars)
-        sim.init()
-        sim = make_sim_pars(sim, calib_pars)
+        sim = make_sim_pars(sim, calib_pars)  # Sets pre-init pars, then inits, then sets post-init pars
         print(f'Using calibration parameters for scenario {scenario} and index {par_idx}')
 
         # Display pars from sim
         for disease in pre_load_calibs:
-            print(f'\n{disease.upper()} parameters:')
-            for k, v in sim.diseases[disease].pars.items():
-                if k in best_pars:
-                    print(f'  {k}: {v} (calibrated)')
+            if disease in sim.diseases:
+                print(f'\n{disease.upper()} parameters:')
+                for k, v in sim.diseases[disease].pars.items():
+                    if k in best_pars:
+                        print(f'  {k}: {v} (calibrated)')
     return sim
 
 
@@ -194,6 +231,37 @@ def save_stats(sims, resfolder='results'):
                     dfs += pd.DataFrame(dd)
     epi_df = pd.concat(dfs)
     sc.saveobj(f'{resfolder}/epi_df.df', epi_df)
+
+    # Save SW-disaggregated prevalence by age/sex (from final sim state)
+    sw_prev_dfs = sc.autolist()
+    for sim in sims:
+        ppl = sim.people
+        nw = sim.networks.structuredsexual
+        age_bins = sim.diseases.syph.age_bins
+        fsw = nw.fsw
+        client = nw.client
+        for disease in ['syph', 'hiv']:
+            dis = sim.diseases[disease]
+            infected = dis.infected
+            if disease == 'syph':
+                active = dis.active
+            for sex_key, sex_label, sw_flag in [('female', 'Female', fsw), ('male', 'Male', client)]:
+                sex_bool = ppl[sex_key]
+                for ab1, ab2 in zip(age_bins[:-1], age_bins[1:]):
+                    age = f'{ab1}-{ab2}' if ab1 != 65 else '65+'
+                    in_age = sex_bool & ppl.alive & (ppl.age >= ab1) & (ppl.age < ab2)
+                    in_sw = in_age & sw_flag
+                    in_non_sw = in_age & ~sw_flag
+                    for sw_label, mask in [('SW', in_sw), ('Non-SW', in_non_sw), ('Overall', in_age)]:
+                        n = mask.count()
+                        prev = float(np.mean(infected[mask])) if n > 0 else np.nan
+                        dd = dict(age=[age], sex=sex_label, sw_group=sw_label,
+                                  disease=disease, prevalence=prev, par_idx=sim.par_idx)
+                        if disease == 'syph':
+                            dd['active_prevalence'] = float(np.mean(active[mask])) if n > 0 else np.nan
+                        sw_prev_dfs += pd.DataFrame(dd)
+    sw_prev_df = pd.concat(sw_prev_dfs)
+    sc.saveobj(f'{resfolder}/sw_prev_df.df', sw_prev_df)
 
     # Save time series of syphilis and HIV infections and prevalence
     ts_dfs = sc.autolist()

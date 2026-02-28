@@ -37,12 +37,13 @@ class DualTest(sti.HIVTest):
     """
     Dual HIV syphilis test
     """
-    def __init__(self, product=None, syph_test=None, pars=None, test_prob_data=None, years=None, start=None, eligibility=None, name=None, label=None, **kwargs):
+    def __init__(self, product=None, syph_test=None, pars=None, test_prob_data=None, years=None, start=None, eligibility=None, name=None, label=None, syph_years=None, syph_prob=None, **kwargs):
         super().__init__(product=product, pars=pars, test_prob_data=test_prob_data, years=years, start=start, eligibility=eligibility, name=name, label=label, **kwargs)
         if self.eligibility is None:
             self.eligibility = lambda sim: ~sim.diseases.hiv.diagnosed
         self.syph_test = syph_test
-        self.syph_start = start if start is not None else 2028
+        self.syph_years = np.array(syph_years) if syph_years is not None else np.array([2022, 2023, 2030])
+        self.syph_prob = np.array(syph_prob) if syph_prob is not None else np.array([0.0, 0.1, 1.0])
 
     def step(self, uids=None):
         sim = self.sim
@@ -51,15 +52,23 @@ class DualTest(sti.HIVTest):
         sim.diseases.hiv.diagnosed[pos_uids] = True
         sim.diseases.hiv.ti_diagnosed[pos_uids] = self.ti
 
-        if self.t.now('year') >= self.syph_start and self.syph_test is not None:
-            testers = (self.ti_tested == self.ti).uids
-            if len(testers) > 0:
-                self.syph_test.ti_scheduled[testers] = self.ti
+        if self.syph_test is not None:
+            prob = np.interp(self.t.now('year'), self.syph_years, self.syph_prob)
+            if prob > 0:
+                testers = (self.ti_tested == self.ti).uids
+                if len(testers) > 0:
+                    if prob >= 1.0:
+                        selected = testers
+                    else:
+                        mask = np.random.random(len(testers)) < prob
+                        selected = testers[mask]
+                    if len(selected) > 0:
+                        self.syph_test.ti_scheduled[selected] = self.ti
 
         return outcomes
 
 
-def get_testing_products(add_dual=False):
+def get_testing_products(add_dual=False, syph_years=None, syph_prob=None):
     """
     Define HIV products and testing interventions
     """
@@ -97,6 +106,8 @@ def get_testing_products(add_dual=False):
         eligibility=fsw_eligibility,
         label='fsw_testing',
         syph_test=dual_test,
+        syph_years=syph_years,
+        syph_prob=syph_prob,
     )
 
     # Non-FSW agents who haven't been diagnosed or treated yet
@@ -131,12 +142,12 @@ def get_testing_products(add_dual=False):
     return tests
 
 
-def make_hiv_intvs(add_dual=False):
+def make_hiv_intvs(add_dual=False, syph_years=None, syph_prob=None):
 
     n_art = pd.read_csv(f'data/n_art.csv').set_index('year')
     n_vmmc = pd.read_csv(f'data/n_vmmc.csv').set_index('year')
-    tests = get_testing_products(add_dual=add_dual)
-    art = sti.ART(coverage_data=n_art)
+    tests = get_testing_products(add_dual=add_dual, syph_years=syph_years, syph_prob=syph_prob)
+    art = sti.ART(coverage_data=n_art, future_coverage={'year': 2022, 'prop': 0.90})
     vmmc = sti.VMMC(coverage_data=n_vmmc)
     prep = sti.Prep()
 
@@ -178,8 +189,8 @@ class pregnancy_risk_reduction(ss.Intervention):
         self.ever_rg2[:] = self.ever_rg2[:] | (self.sim.networks.structuredsexual.risk_group == 2)
         self.default_concurrency[:] = np.maximum(self.sim.networks.structuredsexual.concurrency, self.default_concurrency)
 
-        # Reset sexual preferences for those who are postpartum
-        is_postpartum = self.sim.demographics.pregnancy.postpartum & ~self.sim.demographics.pregnancy.pregnant
+        # Reset sexual preferences for those who are postpartum (breastfeeding and no longer pregnant)
+        is_postpartum = self.sim.demographics.pregnancy.breastfeeding & ~self.sim.demographics.pregnancy.pregnant
         postpartum_fsw = self.ever_fsw & is_postpartum
         postpartum_rg2 = self.ever_rg2 & is_postpartum
         self.sim.networks.structuredsexual.fsw[postpartum_fsw] = True
@@ -226,7 +237,8 @@ def make_scen_specs(scenario):
         ScenSpec(name='soc',    symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='gud',    symp_algo='gud',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='conf',   symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='cs',     symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='dx_cs'),
+        ScenSpec(name='both',   symp_algo='gud',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='cs',     symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='exam'),
         ScenSpec(name='no',     symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
     ]
 
@@ -236,7 +248,7 @@ def make_scen_specs(scenario):
     return scenspecs
 
 
-def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
+def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv_years=None, plhiv_prob=None):
     """
     Define the full testing algorithm for each scenario.
     Baseline:
@@ -268,24 +280,71 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     dxalgos = load_syph_products()
 
     ####################################################
-    # Make symptomatic screening algorithms
+    # Make GUD screening algorithms (primary-stage ulcers)
     ####################################################
-    def all_symptomatic(sim):
-        testers = (sim.diseases.syph.primary | sim.diseases.gud.symptomatic)
+    def all_ulcerative(sim):
+        # Only primary-stage visible chancres + background GUD
+        testers = (sim.diseases.syph.ulcerative | sim.diseases.gud.symptomatic)
         return testers.uids
 
-    # Determine how symptomatic people are managed
+    # GUD syndromic management algorithm
     symp_algo = sti.SyphTest(
         rel_test=rel_symp_test,
-        product=dxalgos[scenspecs.symp_algo],  # SOC prior to 2027.
-        eligibility=all_symptomatic,
+        product=dxalgos[scenspecs.symp_algo],
+        eligibility=all_ulcerative,
         test_prob_data=symp_test_data,
         dt_scale=False,
         name='symp_algo',
         label='symp_algo',
     )
 
-    interventions += symp_algo
+    ####################################################
+    # Make secondary rash screening algorithm
+    ####################################################
+    def secondary_symptomatic(sim):
+        # People with visible secondary syphilis rash seeking care
+        return (sim.diseases.syph.rash_visible & sim.diseases.syph.secondary).uids
+
+    # Secondary rash: syndromic management (low sensitivity ~10%)
+    secondary_algo = sti.SyphTest(
+        rel_test=rel_symp_test,
+        product=dxprods['syndromic_rash'],  # Syndromic management for rash presentations
+        eligibility=secondary_symptomatic,
+        test_prob_data=symp_test_data,
+        dt_scale=False,
+        name='secondary_algo',
+        label='secondary_algo',
+    )
+
+    interventions += [symp_algo, secondary_algo]
+
+    ####################################################
+    # Make newborn testing algorithm (scheduled by ANC when mother is positive)
+    ####################################################
+    newborn_algo = sti.SyphTest(
+        product=dxalgos[scenspecs.newborn_algo],
+        eligibility=lambda sim: ss.uids(),  # Eligibility handled via scheduling
+        dt_scale=False,
+        name='newborn_algo',
+        label='newborn_algo',
+    )
+
+    # Individual newborn tests routed by the algorithm
+    newborn_exam = sti.SyphTest(
+        product=dxprods[scenspecs.newborn_test],
+        eligibility=lambda sim: sim.interventions['newborn_algo'].outcomes.get('exam', ss.uids()) == sim.interventions['newborn_algo'].ti,
+        dt_scale=False,
+        name='newborn_exam',
+        label='newborn_exam',
+    )
+
+    newborn_poc = sti.SyphTest(
+        product=dxprods.get('poc_cs', dxprods[scenspecs.newborn_test]),
+        eligibility=lambda sim: sim.interventions['newborn_algo'].outcomes.get('poc_cs', ss.uids()) == sim.interventions['newborn_algo'].ti,
+        dt_scale=False,
+        name='newborn_poc',
+        label='newborn_poc',
+    )
 
     ####################################################
     # Make ANC screening algorithms
@@ -294,17 +353,18 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         product=dxprods['dual'],
         test_prob_data=anc_test_data,
         years=years,
+        newborn_test=newborn_algo,  # Schedule newborn test when mother is ANC-positive
         name='anc_screen',
         label='anc_screen',
     )
-    interventions += anc_testing
+    interventions += [anc_testing, newborn_algo, newborn_exam, newborn_poc]
 
     ####################################################
     # Make individual screening interventions
     ####################################################
     syndromic = sti.SyphTest(
-        product=dxprods['syndromic'],
-        eligibility=lambda sim: sim.interventions['symp_algo'].outcomes['syndromic'] == sim.interventions['symp_algo'].ti,
+        product=dxprods['syndromic_gud'],
+        eligibility=lambda sim: sim.interventions['symp_algo'].outcomes['syndromic_gud'] == sim.interventions['symp_algo'].ti,
         dt_scale=False,
         name='syndromic',
         label='syndromic',
@@ -324,11 +384,29 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     )
 
     # Positive results on dual test may be given a confirmatory test
+    # In conf/both scenarios, ALL screening positives (ANC + KP + PLHIV) go through confirmation
+    use_confirmation = scenario in ['conf', 'both']
+
     if orig_scenario == 'soc+scaleup':
         def to_confirm(sim):
             p1 = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
             p2 = sim.interventions['dual_hiv'].outcomes['positive'] == sim.interventions['dual_hiv'].ti
             return (p1 | p2).uids
+    elif use_confirmation:
+        def to_confirm(sim):
+            p_anc = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
+            # Pre-intervention: only ANC goes through conf_algo (same as SOC)
+            # Post-intervention: KP and PLHIV also routed through confirmation
+            if sim.t.now('year') >= intv_year:
+                p_kp = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
+                p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
+                sim._conf_origin_kp = p_kp.uids
+                sim._conf_origin_plhiv = p_plhiv.uids
+                return (p_anc | p_kp | p_plhiv).uids
+            else:
+                sim._conf_origin_kp = ss.uids()
+                sim._conf_origin_plhiv = ss.uids()
+                return p_anc.uids
     else:
         def to_confirm(sim):
             p1 = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
@@ -350,8 +428,25 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         label='confirm',
     )
 
+    ####################################################
+    # Make PLHIV-on-ART syphilis screening
+    # NB: must run BEFORE conf_algo so outcomes are available for to_confirm
+    ####################################################
+    plhiv_yrs = np.array(plhiv_years) if plhiv_years is not None else np.array([2019, 2020, 2030, 2041])
+    plhiv_prb = np.array(plhiv_prob) if plhiv_prob is not None else np.array([0.0, 0.1, 0.5, 0.5])
+
+    plhiv_screen = sti.SyphTest(
+        product=dxprods['dual'],
+        eligibility=lambda sim: (sim.diseases.hiv.on_art & sim.people.alive).uids,
+        test_prob_data=plhiv_prb,
+        years=plhiv_yrs,
+        dt_scale=True,
+        name='plhiv_screen',
+        label='plhiv_screen',
+    )
+
     testing_intvs = [
-        syndromic, gud, conf_algo, confirm
+        syndromic, gud, plhiv_screen, conf_algo, confirm
     ]
     interventions += testing_intvs
 
@@ -366,19 +461,82 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
         p3 = sim.interventions['gud_test'].outcomes['positive'] == sim.interventions['gud_test'].ti
         p4 = sim.interventions['confirm'].outcomes['positive'] == sim.interventions['confirm'].ti
         p5 = sim.diseases.syph.tertiary
-        # to_treat = ( p2 | p3 ).uids
-        to_treat = (p1 | p2 | p3 | p4 | p5).uids
+        p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
+
+        p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
+        p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
+
+        if use_confirmation and sim.t.now('year') >= intv_year:
+            # Post-intervention: KP and PLHIV go through conf_algo, NOT directly to treatment
+            to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
+        else:
+            # Pre-intervention or non-confirmation scenarios: direct to treatment
+            to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
+
+        # Store pathway flags for the treatment_outcomes analyzer
+        # Called during treatment eligibility check, BEFORE states are cleared
+        p8_direct = sim.interventions['newborn_algo'].outcomes.get('treat', ss.uids()) == sim.interventions['newborn_algo'].ti
+        p8_exam = sim.interventions['newborn_exam'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_exam'].ti
+        p8_poc = sim.interventions['newborn_poc'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_poc'].ti
+        p8 = p8_direct | p8_exam | p8_poc
+
+        if use_confirmation and sim.t.now('year') >= intv_year:
+            # Post-intervention: attribute conf_algo/confirm outcomes back to originating pathway
+            conf_treated_uids = np.asarray((p1 | p4).uids)
+            kp_origin = np.asarray(getattr(sim, '_conf_origin_kp', ss.uids()))
+            plhiv_origin = np.asarray(getattr(sim, '_conf_origin_plhiv', ss.uids()))
+            kp_from_conf = ss.uids(np.intersect1d(conf_treated_uids, kp_origin))
+            plhiv_from_conf = ss.uids(np.intersect1d(conf_treated_uids, plhiv_origin))
+            anc_from_conf = ss.uids(np.setdiff1d(np.setdiff1d(conf_treated_uids, kp_origin), plhiv_origin))
+
+            sim._tx_pathways = sc.objdict(
+                gud_syndromic=(p2 | p3).uids,
+                anc_screen=anc_from_conf,
+                secondary_rash=p6.uids,
+                kp_screen=kp_from_conf,
+                plhiv_screen=plhiv_from_conf,
+                newborn=p8.uids,
+            )
+        else:
+            sim._tx_pathways = sc.objdict(
+                gud_syndromic=(p2 | p3).uids,
+                anc_screen=(p1 | p4).uids,
+                secondary_rash=p6.uids,
+                kp_screen=p7.uids,
+                plhiv_screen=p_plhiv.uids,
+                newborn=p8.uids,
+            )
+
+        # Store stage at treatment for the treatment_outcomes analyzer
+        syph = sim.diseases.syph
+        all_eligible = to_treat | p8.uids
+        sim._tx_stages = sc.objdict()
+        for stage in ['primary', 'secondary', 'early', 'late', 'tertiary']:
+            sim._tx_stages[stage] = np.asarray((getattr(syph, stage) & all_eligible).uids)
+
         return to_treat
 
     treat = sti.SyphTx(
         years=years,
         eligibility=to_treat,
-        # fetus_treat_eff=0.1,
-        # treat_eff_reduced=0.05,
         name='treat',
         label='treat',
     )
-    interventions += [treat]
+
+    # Newborn treatment — uses NewbornTreatment which checks congenital state
+    def newborn_to_treat(sim):
+        p8_direct = sim.interventions['newborn_algo'].outcomes.get('treat', ss.uids()) == sim.interventions['newborn_algo'].ti
+        p8_exam = sim.interventions['newborn_exam'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_exam'].ti
+        p8_poc = sim.interventions['newborn_poc'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_poc'].ti
+        return (p8_direct | p8_exam | p8_poc).uids
+
+    newborn_treat = sti.NewbornTreatment(
+        years=years,
+        eligibility=newborn_to_treat,
+        name='newborn_treat',
+    )
+
+    interventions += [treat, newborn_treat]
 
     # Add risk reduction,
     pregnancy_risk = pregnancy_risk_reduction()
@@ -394,7 +552,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
     return interventions
 
 
-def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0):
+def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, syph_years=None, syph_prob=None, plhiv_years=None, plhiv_prob=None):
     """
     Make interventions for syphilis / HIV coinfection model
     """
@@ -402,8 +560,8 @@ def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_t
 
     # HIV interventions
     if which == 'all':
-        hiv_intvs = make_hiv_intvs(add_dual=True)
-        syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test)
+        hiv_intvs = make_hiv_intvs(add_dual=True, syph_years=syph_years, syph_prob=syph_prob)
+        syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test, plhiv_years=plhiv_years, plhiv_prob=plhiv_prob)
         interventions += hiv_intvs + syph_intvs
 
     elif which == 'hiv':
