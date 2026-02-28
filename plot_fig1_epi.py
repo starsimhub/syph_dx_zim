@@ -160,56 +160,72 @@ def plot_prev_by_sw(sw_prev_df, ax, prev_col='active_prevalence', title=None,
 
 
 def plot_transmission_by_stage_bars(cs, ax):
-    """Grouped bars: % of sexual and MTC transmission by stage"""
-    stages = ['primary', 'secondary', 'early']
-    stage_labels = ['Primary', 'Secondary', 'Early\nlatent']
-    colors = ['#e41a1c', '#ff7f00', '#984ea3']
+    """Sexual transmission by stage (left group) + MTC by birth outcome (right group)"""
+    # --- Sexual transmission by stage ---
+    sex_stages = ['primary', 'secondary', 'early']
+    sex_labels = ['Primary', 'Secondary', 'Early\nlatent']
+    sex_colors = ['#e41a1c', '#ff7f00', '#984ea3']
 
-    # Compute percentages for each transmission mode
-    pcts_by_mode = {}
-    for mode in ['sex', 'mtc']:
-        total = 0
-        vals = {}
-        for stage in stages + ['late', 'tertiary']:
-            col = f'transmission_by_stage.new_{mode}_{stage}'
+    sex_total = 0
+    sex_vals = {}
+    for stage in sex_stages + ['late', 'tertiary']:
+        col = f'transmission_by_stage.new_sex_{stage}'
+        if col in cs.columns.get_level_values(0):
+            v = cs[(col, '50%')].sum()
+            sex_vals[stage] = v
+            sex_total += v
+    sex_pcts = [sex_vals.get(s, 0) / sex_total * 100 if sex_total > 0 else 0 for s in sex_stages]
+
+    # --- MTC by birth outcome (summed across stages) ---
+    mtc_outcomes = ['death', 'congenital', 'normal']
+    mtc_labels = ['Death', 'Congenital\nsyphilis', 'Normal']
+    mtc_colors = ['#555555', '#cb181d', '#4daf4a']
+
+    mtc_total = 0
+    mtc_vals = {}
+    for outcome in mtc_outcomes:
+        val = 0
+        for stage in ['primary', 'secondary', 'early', 'late', 'tertiary']:
+            col = f'transmission_by_stage.new_mtc_{stage}_{outcome}'
             if col in cs.columns.get_level_values(0):
-                v = cs[(col, '50%')].sum()
-                vals[stage] = v
-                total += v
-        if total > 0:
-            pcts_by_mode[mode] = [vals.get(s, 0) / total * 100 for s in stages]
-        else:
-            pcts_by_mode[mode] = [0] * len(stages)
+                val += cs[(col, '50%')].sum()
+        mtc_vals[outcome] = val
+        mtc_total += val
+    mtc_pcts = [mtc_vals.get(o, 0) / mtc_total * 100 if mtc_total > 0 else 0 for o in mtc_outcomes]
 
-    x = np.arange(len(stages))
-    width = 0.35
+    # --- Plot ---
+    n_sex = len(sex_stages)
+    n_mtc = len(mtc_outcomes)
+    gap = 0.8  # Gap between sexual and MTC groups
+    x_sex = np.arange(n_sex)
+    x_mtc = np.arange(n_mtc) + n_sex + gap
+    width = 0.7
 
-    # Sexual transmission bars
-    bars_sex = ax.bar(x - width/2, pcts_by_mode['sex'], width, color=colors,
-                      alpha=0.85, edgecolor='white', linewidth=0.5)
-    # MTC bars (lighter)
-    bars_mtc = ax.bar(x + width/2, pcts_by_mode['mtc'], width, color=colors,
-                      alpha=0.4, edgecolor='white', linewidth=0.5, hatch='///')
+    bars_sex = ax.bar(x_sex, sex_pcts, width, color=sex_colors, alpha=0.85, edgecolor='white', linewidth=0.5)
+    bars_mtc = ax.bar(x_mtc, mtc_pcts, width, color=mtc_colors, alpha=0.85, edgecolor='white', linewidth=0.5)
 
-    for bar, pct in zip(bars_sex, pcts_by_mode['sex']):
-        if pct > 3:
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1,
-                    f'{pct:.0f}%', ha='center', va='bottom', fontsize=11, fontweight='bold')
-    for bar, pct in zip(bars_mtc, pcts_by_mode['mtc']):
-        if pct > 3:
+    for bar, pct in zip(list(bars_sex) + list(bars_mtc), sex_pcts + mtc_pcts):
+        if pct > 2:
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1,
                     f'{pct:.0f}%', ha='center', va='bottom', fontsize=11, fontweight='bold')
 
-    ax.set_xticks(x)
-    ax.set_xticklabels(stage_labels)
-    ax.set_ylabel('Share of\ntransmissions (%)')
-    ax.set_title('Syphilis transmission\nby disease stage')
-    ax.set_ylim(0, 80)
+    all_x = np.concatenate([x_sex, x_mtc])
+    all_labels = sex_labels + mtc_labels
+    ax.set_xticks(all_x)
+    ax.set_xticklabels(all_labels, fontsize=11)
+    ax.set_ylabel('Share (%)')
+    ax.set_title('Syphilis transmission')
+    ax.set_ylim(0, 85)
 
-    # Legend for transmission mode
-    from matplotlib.patches import Patch
-    ax.legend([Patch(facecolor='grey', alpha=0.85), Patch(facecolor='grey', alpha=0.4, hatch='///')],
-              ['Sexual', 'Maternal'], frameon=False, fontsize=12, loc='upper right')
+    # Group labels
+    ax.text(np.mean(x_sex), -0.18, 'Sexual\n(by stage)', transform=ax.get_xaxis_transform(),
+            ha='center', va='top', fontsize=12, fontweight='bold')
+    ax.text(np.mean(x_mtc), -0.18, 'Maternal\n(by outcome)', transform=ax.get_xaxis_transform(),
+            ha='center', va='top', fontsize=12, fontweight='bold')
+
+    # Vertical separator
+    sep_x = (x_sex[-1] + x_mtc[0]) / 2
+    ax.axvline(x=sep_x, color='grey', linewidth=0.8, linestyle='-', alpha=0.3)
 
 
 def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019):
