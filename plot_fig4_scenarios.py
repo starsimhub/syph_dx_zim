@@ -95,8 +95,8 @@ def plot_treatments_ts(dfs, ax, start_year=2025, end_year=2039):
                     linestyle=ls, label=lbl, alpha=0.8)
 
     ax.set_ylabel('Treatments per year')
-    ax.set_title('Syphilis treatments')
-    ax.legend(frameon=False, fontsize=11)
+    ax.set_title('(A) Syphilis treatments\nby scenario')
+    ax.legend(frameon=False, fontsize=14)
     ax.set_xlim(start_year, end_year)
     ax.set_ylim(bottom=0)
     sc.SIticks(ax, axis='y')
@@ -216,5 +216,5 @@ if __name__ == '__main__':
         ax.text(-0.10, 1.06, chr(65 + i), transform=ax.transAxes,
                 fontsize=28, fontweight='bold', va='top')
 
-    pl.savefig(f'{FIGURES_DIR}/fig3_scenario_comparison.png', dpi=200, bbox_inches='tight')
-    print(f'Saved {FIGURES_DIR}/fig3_scenario_comparison.png')
+    pl.savefig(f'{FIGURES_DIR}/fig4_scenario_comparison.png', dpi=200, bbox_inches='tight')
+    print(f'Saved {FIGURES_DIR}/fig4_scenario_comparison.png')

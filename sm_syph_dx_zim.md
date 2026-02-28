@@ -79,13 +79,15 @@ where t is the duration in latent phase and the half-life is assumed to be 1 yea
 
 | Parameter | Description | Value | Source |
 | :---- | :---- | :---- | :---- |
-| beta\_m2f | Per-act transmission probability from an infected male to a susceptible female | 0.015 | Calibrated |
-| beta\_f2m | Per-act transmission probability from an infected female to a susceptible male | 0.0075 | Calibrated |
-| rel\_trans\_primary | Scale factor on transmissions probability for persons with primary syphilis | 1 | Assumption |
-| rel\_trans\_secondary | Scale factor on transmissions probability for persons with secondary syphilis | 1 | Assumption |
-| rel\_trans\_latent | Scale factor on transmissions probability for persons with latent syphilis | Exponentially decays with duration of latency, with half-life of 1 year | Assumption |
+| beta\_m2f | Per-act transmission probability from an infected male to a susceptible female | 0.17 (0.15–0.22) | Calibrated |
+| beta\_m2c | Per-timestep MTCT probability (stage-independent) | 0.075 | Calibrated to ~1,500 CS cases/yr |
+| eff\_condom | Condom efficacy for syphilis prevention | 0.53 (0.41–0.58) | Calibrated |
+| rel\_trans\_primary | Scale factor on transmission probability for persons with primary syphilis | 8.0 (6.9–9.7) | Calibrated |
+| rel\_trans\_secondary | Scale factor on transmission probability for persons with secondary syphilis | 1.0 (reference) | Assumption |
+| rel\_trans\_latent | Baseline scale factor for persons with latent syphilis | 0.1, decaying with half-life of 6 months | Assumption |
+| rel\_trans\_tertiary | Scale factor for persons with tertiary syphilis | 0.0 | Assumption |
 
-Table S3: probability of syphilis transmission through sexual contact 
+Table S3: probability of syphilis transmission through sexual contact. Values in parentheses show the 5th–95th percentile range across the top 200 calibrated parameter sets. Sexual transmission uses stage-specific relative infectiousness; maternal-to-child transmission uses stage-independent probability (rel_trans = 1 for all stages on the maternal network), reflecting that spirochetemia during pregnancy affects the fetus regardless of clinical stage.
 
 ### Maternal transmission  {#maternal-transmission}
 
@@ -135,7 +137,45 @@ This initialization approach ensures the model begins with a realistic distribut
 
 ## Diagnostic Testing {#diagnostic-testing}
 
-TODO
+See Tables 1 and 2 in the main text for diagnostic test characteristics and intervention scenario descriptions. Test sensitivities by syphilis state are detailed in Table S5.
+
+| Test | Naive | Previously exposed | Exposed (incubating) | Primary | Secondary | Latent | Tertiary |
+|---|---|---|---|---|---|---|---|
+| Syndromic GUD (SOC) | 80% | 80% | 80% | 80% | 80% | 80% | 80% |
+| Dual treponemal RDT | 1% | 95% | 20% | 20% | 95% | 95% | 95% |
+| GUD POC test | 5% | 5% | 5% | 95% | 20% | 5% | 5% |
+| Confirmatory test | 0% | 0% | 10% | 95% | 95% | 95% | 95% |
+
+Table S5: Diagnostic test sensitivity (probability of a positive result) by syphilis disease state. The syndromic GUD test represents presumptive treatment of all GUD presentations; 80% reflects that not all presentations result in treatment. The dual treponemal RDT has high sensitivity for previously exposed individuals (including those with resolved infection), which drives overtreatment. The GUD POC test is specific to primary chancres. The confirmatory test distinguishes active infection from serological scarring.
+
+## Calibrated parameters {#calibrated-parameters}
+
+We jointly calibrated 15 model parameters to Zimbabwe-specific HIV and syphilis epidemiological data using 2,000 Optuna trials. The top 200 parameter sets (ranked by weighted mismatch score) were retained for analysis. Table S6 lists all calibrated parameters with their prior ranges and posterior estimates.
+
+| Parameter | Description | Prior range | Posterior median (5th–95th) |
+|---|---|---|---|
+| **HIV transmission** | | | |
+| hiv\_beta\_m2f | Male-to-female HIV transmission probability per act | 0.002–0.014 | 0.012 (0.008–0.013) |
+| hiv\_eff\_condom | Condom efficacy for HIV prevention | 0.50–0.90 | 0.86 (0.63–0.90) |
+| hiv\_rel\_init\_prev | Relative scaling of initial HIV prevalence in 1985 | 2.0–15.0 | 6.7 (3.1–14.6) |
+| hiv\_rel\_dur\_on\_art | Effective ART duration multiplier (base 3 years) | 1.0–20.0 | 13.0 (7.0–16.2) |
+| **Syphilis transmission** | | | |
+| syph\_beta\_m2f | Male-to-female syphilis transmission probability per act | 0.15–0.35 | 0.17 (0.15–0.22) |
+| syph\_eff\_condom | Condom efficacy for syphilis prevention | 0.30–0.70 | 0.53 (0.41–0.58) |
+| syph\_rel\_trans\_primary | Relative infectiousness of primary vs secondary syphilis | 3.0–10.0 | 8.0 (6.9–9.7) |
+| **Sexual network** | | | |
+| nw\_prop\_f0 | Proportion of women in lowest risk group | 0.55–0.90 | 0.67 (0.60–0.82) |
+| nw\_prop\_m0 | Proportion of men in lowest risk group | 0.55–0.80 | 0.61 (0.55–0.77) |
+| nw\_m1\_conc | Concurrency rate for mid-risk men | 0.05–0.30 | 0.08 (0.05–0.24) |
+| **HIV-syphilis coinfection** | | | |
+| conn\_rel\_sus\_syph\_hiv | Relative susceptibility to syphilis given HIV | 1.0–3.0 | 1.9 (1.2–2.6) |
+| conn\_rel\_sus\_hiv\_syph | Relative susceptibility to HIV given active syphilis | 1.5–4.0 | 2.5 (1.7–3.9) |
+| **Diagnostic testing rates** | | | |
+| rel\_symp\_test | Symptomatic care-seeking rate multiplier | 0.50–1.50 | 0.84 (0.56–1.17) |
+| rel\_anc\_test | ANC syphilis screening rate multiplier | 0.70–1.80 | 1.42 (1.08–1.66) |
+| rel\_kp\_test | KP syphilis screening rate multiplier | 0.50–1.70 | 0.88 (0.53–1.61) |
+
+Table S6: Calibrated model parameters. Prior ranges define the bounds of a uniform distribution explored by the Optuna sampler. Posterior estimates are computed from the top 200 parameter sets (out of 2,000 trials), ranked by weighted mean squared error mismatch to calibration targets.
 
 # References {#references}
 

@@ -1,181 +1,67 @@
-# syph_dx_zim
+# Estimating the value of novel syphilis diagnostics in Zimbabwe
 
-**Estimating the value of novel syphilis diagnostics in Zimbabwe: how much overtreatment can be avoided?**
+Agent-based model analysis of syphilis diagnostic scenarios using STIsim.
 
-This repository contains an agent-based model of co-transmitting HIV and syphilis in Zimbabwe, used to evaluate the potential impact of novel point-of-care diagnostic tests on syphilis overtreatment.
+## Quick start
 
-## Background
-
-Current approaches to syphilis diagnosis in Zimbabwe result in substantial overtreatment:
-
-1. **Symptomatic detection (genital ulcer disease)**: WHO guidelines recommend syndromic management, which treats all patients presenting with genital ulcers for multiple pathogens including syphilis. This achieves 100% sensitivity but 0% specificity, as syphilis causes only 10-30% of GUD cases in sub-Saharan Africa.
-
-2. **Asymptomatic detection (antenatal screening)**: Dual HIV-syphilis rapid diagnostic tests use treponemal antibody detection, which cannot distinguish active infection from past/treated infection. Studies suggest 40-60% of treponemal-positive pregnant women may have past rather than active infections.
-
-This study uses STIsim, an agent-based model of co-transmitting sexually transmitted infections, to quantify current levels of overtreatment and estimate the reduction achievable through two novel point-of-care diagnostics:
-- A rapid test for detecting treponemes directly from genital ulcers
-- A confirmatory test for active syphilis following positive treponemal screening in pregnancy
-
-## Installation
-
-1. Create a new virtual environment:
-   ```bash
-   conda create -n syph_dx python=3.11 -y
-   conda activate syph_dx
-   ```
-
-2. Install requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Test the installation:
-   ```bash
-   python run_sims.py
-   ```
-
-## Repository Structure
-
-### Data
-- `data/` - Input data for calibration
-  - `zimbabwe_hiv_data.csv` - HIV prevalence, incidence, and mortality targets
-  - `zimbabwe_syph_data.csv` - Syphilis prevalence and symptomatic presentation rates
-  - Other demographic and behavioral data files
-
-### Model Files
-- `diseases.py` - Transmission models for HIV, syphilis, and background GUD
-- `run_sims.py` - Construct main HIV-syphilis coinfection model and define run configs
-- `interventions.py` - Diagnostic intervention implementations
-- `analyzers.py` - Custom analyzers for tracking overtreatment and health outcomes
-- `utils.py` - Utility functions for data processing and plotting
-
-### Analysis Workflow
-
-The analysis proceeds in four sequential steps:
-
-#### Step 1: Calibrate HIV Model
 ```bash
+# 1. Calibrate (2,000 Optuna trials, ~hours on HPC)
 python run_calibrations.py
-```
-Calibrates HIV prevalence, incidence, and mortality to match Zimbabwe data.
 
-**Outputs:**
-- `results/zim_calib_stats_hiv.df`
-- `results/zim_par_stats_hiv.df`
+# 2. Run multi-sim with top 200 calibrated parameter sets (~20 min)
+python run_msim.py --n_pars 200
 
-#### Step 2: Calibrate Syphilis Model
-```bash
-python run_calibrations.py
-```
-Calibrates syphilis prevalence and symptomatic presentation rates.
-
-**Outputs:**
-- `results/zim_calib_stats_syph.df`
-- `results/zim_par_stats_syph.df`
-
-#### Step 3: Run Diagnostic Scenarios
-```bash
+# 3. Run diagnostic scenarios (5 scenarios x 10 pars, ~15 min)
 python run_scenarios.py
-```
-Simulates baseline and intervention scenarios to quantify overtreatment reduction.
 
-**Scenarios:**
-- **Baseline**: Current syndromic management + treponemal RDT screening
-- **Scenario 1**: Baseline + POC test for GUD (detects treponemes from ulcers)
-- **Scenario 2**: Baseline + POC confirmatory test for ANC (confirms active infection)
-- **Scenario 3**: Both POC tests
-
-**Outputs:**
-- `results/overtreatment.obj`
-- `results/diagnostic_scenarios.obj`
-- `results/health_outcomes.obj`
-
-### Plotting Results
-
-Generate figures for the manuscript:
-
-```bash
-# Calibration results (supplementary materials)
-python plot_calibrations.py
-
-# Epidemiological trends (Figure 2)
-python plot_fig2_epi.py
-
-# Overtreatment analysis (Figure 3)
-python plot_fig3_overtreatment.py
-
-# Diagnostic scenario comparison (Figure 4)
-python plot_fig4_scenarios.py
+# 4. Generate all figures
+python plot_fig1_epi.py           # Fig 1: Syphilis & HIV epidemiology
+python plot_fig2_treatment.py     # Fig 2: Care-seeking cascades + Fig 3: Treatment outcomes
+python plot_fig4_scenarios.py     # Fig 4: Scenario comparison
+python plot_figs2_network.py      # Fig S2: Network structure (supplementary)
+python plot_figs3_calibration.py  # Fig S3: HIV calibration (supplementary)
 ```
 
-## Key Model Features
+## Pipeline
 
-### HIV Transmission
-- Sexual network structure with casual, main, and one-time partnerships
-- HIV transmission with stage-specific infectiousness
-- ART coverage and viral suppression
-- Interaction with syphilis (increased HIV acquisition risk)
+| Step | Script | Output | Time |
+|------|--------|--------|------|
+| Calibrate | `run_calibrations.py` | `results/zimbabwe_pars_all.df` | Hours (HPC) |
+| Multi-sim | `run_msim.py` | `results/zimbabwe_calib_stats_all.df`, `results/sw_prev_df.df` | ~20 min |
+| Scenarios | `run_scenarios.py` | `results/treatment_outcomes_{scenario}.df` | ~15 min |
 
-### Syphilis Transmission
-- Primary, secondary, early latent, and late latent stages
-- Symptomatic presentation (genital ulcers) in ~40% of primary/secondary cases
-- Congenital syphilis transmission during pregnancy
-- Interaction with HIV (increased syphilis acquisition and progression)
+- `run_msim.py` captures all results via `sim.to_df()` (~744 columns, pruned to ~100).
+  To add new analyzer results, just rerun `run_msim.py` — no recalibration needed.
+- `run_scenarios.py` runs 5 scenarios: `soc`, `gud`, `conf`, `both`, `cs`.
 
-### Diagnostic Pathways
-1. **Symptomatic (GUD) pathway:**
-   - Probability of care-seeking with genital ulcers
-   - Syndromic management (baseline): treat all with antibiotics
-   - POC treponeme test (intervention): test-guided treatment
+## Figures
 
-2. **Asymptomatic (ANC) pathway:**
-   - Antenatal care attendance rates
-   - Dual HIV-syphilis screening
-   - Treponemal RDT (baseline): treat all positives
-   - POC confirmatory test (intervention): test-guided treatment
+| Figure | Script | Description |
+|--------|--------|-------------|
+| Fig 1 | `plot_fig1_epi.py` | Syphilis & HIV epidemiology (5 panels) |
+| Fig 2 | `plot_fig2_treatment.py` | Care-seeking cascades (GUD + congenital) |
+| Fig 3 | `plot_fig2_treatment.py` | Treatment outcomes under SOC (3 panels) |
+| Fig 4 | `plot_fig4_scenarios.py` | Scenario comparison (3 panels) |
+| Fig S2 | `plot_figs2_network.py` | Network structure (supplementary) |
+| Fig S3 | `plot_figs3_calibration.py` | HIV calibration to UNAIDS data (supplementary) |
 
-### Outcome Measures
-- Syphilis overtreatment (unnecessary treatments)
-- Syphilis undertreatment (missed cases)
-- Congenital syphilis cases
-- Disability-adjusted life years (DALYs)
-- Treatment costs
-- Benzathine penicillin doses used
+## Key files
 
-## Model Parameters
+| File | Description |
+|------|-------------|
+| `diseases.py` | HIV + syphilis disease configuration |
+| `interventions.py` | Diagnostic testing algorithms and treatment pathways |
+| `analyzers.py` | Treatment outcomes, transmission by stage, epi time series |
+| `run_sims.py` | Core sim-building functions |
+| `data/syph_dx.csv` | Diagnostic test sensitivities by syphilis state |
+| `data/syph_products.csv` | Algorithm routing by scenario and year |
+| `syph_dx_zim.md` | Main manuscript |
+| `sm_syph_dx_zim.md` | Supplementary materials |
+| `archive/` | Old/exploratory plotting scripts (not in manuscript) |
 
-Key parameters are calibrated to match Zimbabwe-specific data:
-- HIV prevalence: ~12-13% in adults (ZIMPHIA 2015-2016)
-- Active syphilis prevalence: ~0.8-0.9% in general population
-- Syphilis seroprevalence: ~2.7% (ever infected)
-- ANC attendance: ~90%
-- Proportion of GUD caused by syphilis: ~15-25%
+## Dependencies
 
-## Requirements
-
-See `requirements.txt` for full dependencies. Key packages:
-- `starsim` (v2.0+)
-- `stisim` (v1.0+)
-- `numpy`
-- `pandas`
-- `matplotlib`
-- `scienceplots`
-- `scipy`
-
-## Citation
-
-If you use this model or code, please cite:
-
-[Citation will be added upon publication]
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Contact
-
-For questions or collaboration inquiries, please open an issue on this repository.
-
-## Acknowledgments
-
-This work uses the Starsim modeling framework developed by the Institute for Disease Modeling. 
+- Python 3.11+
+- [STIsim](https://github.com/starsimhub/stisim) v1.5+
+- [Starsim](https://github.com/starsimhub/starsim) v3.1+
+- sciris, numpy, pandas, matplotlib

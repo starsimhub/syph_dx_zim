@@ -114,8 +114,8 @@ def plot_stacked_outcomes(df, ax, start_year=2000, end_year=END_YEAR):
     ax.set_xticks(x)
     ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in PATHWAYS])
     ax.set_ylabel('Annual average')
-    ax.set_title('Treatment outcomes by pathway')
-    ax.legend(frameon=False, fontsize=13)
+    ax.set_title('(A) Treatment outcomes\nby pathway')
+    ax.legend(frameon=False, fontsize=14)
     ax.set_ylim(bottom=0)
     sc.SIticks(ax, axis='y')
 
@@ -139,7 +139,7 @@ def plot_overtreatment_rate_bars(df, ax, start_year=2000, end_year=END_YEAR):
     ax.set_xticks(x)
     ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in PATHWAYS])
     ax.set_ylabel('Overtreatment rate (%)')
-    ax.set_title('Overtreatment rate by pathway')
+    ax.set_title('(B) Overtreatment rate\nby pathway')
     ax.set_ylim(0, 110)
 
 
@@ -203,9 +203,9 @@ def plot_stage_at_detection(df, ax, start_year=2000, end_year=END_YEAR):
     ax.set_xticks(x)
     ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in det_pathways])
     ax.set_ylabel('Stage at detection (%)')
-    ax.set_title('Stage at detection')
-    ax.legend(frameon=False, fontsize=11, loc='upper left', ncol=2)
-    ax.set_ylim(0, 105)
+    ax.set_title('(C) Stage at detection\nby pathway')
+    ax.legend(frameon=False, fontsize=14, loc='upper right', ncol=2)
+    ax.set_ylim(0, 120)
 
 
 def plot_congenital_outcomes_ts(df, ax, start_year=2000, end_year=END_YEAR):
@@ -233,38 +233,214 @@ def plot_congenital_outcomes_ts(df, ax, start_year=2000, end_year=END_YEAR):
     sc.SIticks(ax, axis='y')
 
 
+def plot_gud_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR):
+    """GUD syndromic care-seeking cascade: per 100 primary syphilis infections"""
+
+    # Compute cascade from model outputs
+    new_inf = cs.loc[cs.index >= start_year, ('syph.new_infections', '50%')].mean()
+    new_inf_f = cs.loc[cs.index >= start_year, ('syph.new_infections_f', '50%')].mean()
+    f_frac = new_inf_f / new_inf
+    p_visible = f_frac * 0.3 + (1 - f_frac) * 0.5  # p_symp_primary: 30%F, 50%M
+
+    # Scale factor between treatment_outcomes df and calib_stats
+    n_active_to = df[(df.metric == 'n_active') & (df.year_int >= start_year)].set_index('year_int')['mean'].mean()
+    n_active_cs = cs.loc[cs.index >= start_year, ('syph.n_active', '50%')].mean()
+    scale = n_active_cs / n_active_to if n_active_to > 0 else 1
+
+    # GUD treatment outcomes (scaled)
+    gud_success = get_metric(df, 'gud_syndromic_success', start_year, end_year).mean() * scale
+    gud_missed = get_metric(df, 'gud_syndromic_missed', start_year, end_year).mean() * scale
+    gud_failure = get_metric(df, 'gud_syndromic_failure', start_year, end_year).mean() * scale
+
+    # Cascade per 100 primary infections
+    visible_total = new_inf * p_visible
+    sought_care_total = gud_success + gud_missed + gud_failure
+    seek_rate = sought_care_total / visible_total if visible_total > 0 else 0
+
+    steps = [
+        100,
+        100 * p_visible,
+        100 * p_visible * seek_rate,
+        100 * p_visible * seek_rate * 0.80,  # syndromic 80% sensitivity
+        100 * p_visible * seek_rate * 0.80 * 0.98,  # 98% treatment efficacy
+    ]
+    labels = [
+        'Primary\nsyphilis',
+        'Visible\nchancre',
+        'Seek\ncare',
+        'Test\npositive',
+        'Correctly\ntreated',
+    ]
+    loss_labels = [
+        '',
+        'Painless/internal',
+        'No care-seeking',
+        'False negative',
+        'Treatment failure',
+    ]
+
+    # Colors: green for retained, with fading
+    bar_color = '#4a90d9'
+    loss_color = '#dddddd'
+    y = np.arange(len(steps))[::-1]
+
+    # Main bars
+    bars = ax.barh(y, steps, color=bar_color, alpha=0.85, edgecolor='white', linewidth=0.5, height=0.7)
+
+    # Loss shading (show what was lost at each step)
+    for i in range(1, len(steps)):
+        ax.barh(y[i], steps[i-1] - steps[i], left=steps[i], color=loss_color, alpha=0.5, height=0.7)
+
+    # Labels
+    for i, (step, label) in enumerate(zip(steps, labels)):
+        if step >= 1:
+            ax.text(step + 1, y[i], f'{step:.0f}', ha='left', va='center', fontsize=16, fontweight='bold')
+        else:
+            ax.text(max(step, 0) + 1, y[i], f'{step:.1f}', ha='left', va='center', fontsize=16, fontweight='bold')
+
+    # Loss annotations
+    for i in range(1, len(steps)):
+        lost = steps[i-1] - steps[i]
+        if lost > 0.5:
+            ax.text(steps[i-1] - 0.5, y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
+                    ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.set_xlim(0, 115)
+    ax.set_title('GUD syndromic cascade\nper 100 primary syphilis cases')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+
+def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_attendance=0.90):
+    """Congenital prevention cascade: per 100 at-risk pregnancies"""
+    cols = cs.columns.get_level_values(0)
+
+    # Scale factor
+    n_active_to = df[(df.metric == 'n_active') & (df.year_int >= start_year)].set_index('year_int')['mean'].mean()
+    n_active_cs = cs.loc[cs.index >= start_year, ('syph.n_active', '50%')].mean()
+    scale = n_active_cs / n_active_to if n_active_to > 0 else 1
+
+    # ANC cascade (from treatment_outcomes, scaled)
+    anc_success = get_metric(df, 'anc_screen_success', start_year, end_year).mean() * scale
+    anc_missed = get_metric(df, 'anc_screen_missed', start_year, end_year).mean() * scale
+    anc_failure = get_metric(df, 'anc_screen_failure', start_year, end_year).mean() * scale
+    nb_success = get_metric(df, 'newborn_success', start_year, end_year).mean() * scale
+
+    # Total MTC transmissions (occurred despite interventions)
+    mtc_total = sum(
+        cs.loc[cs.index >= start_year, (f'transmission_by_stage.new_mtc_{s}', '50%')].mean()
+        for s in ['primary', 'secondary', 'early', 'late', 'tertiary']
+        if f'transmission_by_stage.new_mtc_{s}' in cols
+    )
+
+    # Estimate total at-risk pregnancies
+    mothers_screened_active = anc_success + anc_missed + anc_failure
+    fetal_prevented = anc_success * 0.90  # ~90% avg fetal efficacy (mix of 98% and 75%)
+    total_at_risk = mtc_total + fetal_prevented
+
+    # Normalize to 100
+    f = 100 / total_at_risk if total_at_risk > 0 else 1
+    attend_anc = 100 * anc_attendance  # ~90% ANC attendance (Zimbabwe DHS)
+    screened = mothers_screened_active * f  # Model-derived: screened = attend × screening_rate
+    detected = (anc_success + anc_failure) * f  # tested positive
+    treated = anc_success * f  # mother treated
+    fetus_cured = fetal_prevented * f
+    remaining = 100 - fetus_cured
+    nb_saved = nb_success / mtc_total * remaining if mtc_total > 0 else 0
+
+    # Two-part cascade: ANC pathway + newborn pathway
+    steps = [100, attend_anc, screened, detected, treated, fetus_cured]
+    labels = [
+        'At-risk\npregnancies',
+        'Attend\nANC',
+        'Screened for\nsyphilis',
+        'Test\npositive',
+        'Mother\ntreated',
+        'Fetus cured\nin utero',
+    ]
+    loss_labels = ['', 'No ANC', 'Not screened', 'False negative', 'Not treated', 'Treatment failure']
+
+    # Colors
+    bar_color = '#377eb8'
+    loss_color = '#dddddd'
+    y = np.arange(len(steps) + 3)[::-1]  # Extra space for newborn section
+
+    # ANC bars
+    ax.barh(y[0:len(steps)], steps, color=bar_color, alpha=0.85,
+            edgecolor='white', linewidth=0.5, height=0.7)
+    for i in range(1, len(steps)):
+        ax.barh(y[i], steps[i-1] - steps[i], left=steps[i], color=loss_color, alpha=0.5, height=0.7)
+
+    # Newborn section
+    nb_steps = [remaining, nb_saved]
+    nb_labels = ['Still at risk\nat birth', 'Newborn\ntreated']
+    nb_y = y[len(steps)+1:len(steps)+3]
+    ax.barh(nb_y, nb_steps, color='#e41a1c', alpha=0.7, edgecolor='white', linewidth=0.5, height=0.7)
+    ax.barh(nb_y[0], 100 - remaining, left=remaining, color=bar_color, alpha=0.3, height=0.7)
+
+    # Labels on bars
+    all_steps = list(steps) + [None] + list(nb_steps)
+    all_labels = list(labels) + [''] + list(nb_labels)
+    for i, (step, _) in enumerate(zip(all_steps, all_labels)):
+        if step is None:
+            continue
+        if step >= 1:
+            ax.text(step + 1, y[i], f'{step:.0f}', ha='left', va='center', fontsize=16, fontweight='bold')
+        elif step > 0:
+            ax.text(max(step, 0) + 1, y[i], f'{step:.1f}', ha='left', va='center', fontsize=16, fontweight='bold')
+
+    # Loss annotations for ANC steps
+    for i in range(1, len(steps)):
+        lost = steps[i-1] - steps[i]
+        if lost > 1:
+            ax.text(steps[i-1] - 0.5, y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
+                    ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
+
+    # Section divider
+    sep_y = (y[len(steps)-1] + y[len(steps)]) / 2
+    ax.axhline(y=sep_y, color='grey', linewidth=0.8, linestyle='--', alpha=0.4)
+    ax.text(50, sep_y + 0.15, 'Remaining: newborn pathway', ha='center', va='bottom',
+            fontsize=13, color='grey', style='italic')
+
+    all_y_labels = list(labels) + [''] + list(nb_labels)
+    ax.set_yticks(y)
+    ax.set_yticklabels(all_y_labels)
+    ax.set_xlim(0, 115)
+    ax.set_title('Congenital prevention cascade\nper 100 at-risk pregnancies')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+
 if __name__ == '__main__':
 
     scenario = 'soc'
     df = load_data(scenario)
     annual = pivot_annual(df, start_year=2000, end_year=END_YEAR)
+    cs = sc.loadobj(f'{RESULTS_DIR}/zimbabwe_calib_stats_all.df')
 
-    set_font(size=18)
-    fig = pl.figure(figsize=(22, 14))
-    gs = GridSpec(2, 3, left=0.06, right=0.98, bottom=0.06, top=0.93,
-                  wspace=0.28, hspace=0.38)
+    set_font(size=20)
+    fig = pl.figure(figsize=(22, 8))
+    gs = GridSpec(1, 3, left=0.05, right=0.98, bottom=0.10, top=0.88,
+                  wspace=0.25)
 
     ax = fig.add_subplot(gs[0, 0])
-    plot_stacked_outcomes_ts(annual, ax)
-
-    ax = fig.add_subplot(gs[0, 1])
     plot_stacked_outcomes(annual, ax)
 
-    ax = fig.add_subplot(gs[0, 2])
+    ax = fig.add_subplot(gs[0, 1])
     plot_overtreatment_rate_bars(annual, ax)
 
-    ax = fig.add_subplot(gs[1, 0])
-    plot_care_seeking_gap(annual, ax)
-
-    ax = fig.add_subplot(gs[1, 1])
+    ax = fig.add_subplot(gs[0, 2])
     plot_stage_at_detection(annual, ax)
 
-    ax = fig.add_subplot(gs[1, 2])
-    plot_congenital_outcomes_ts(annual, ax)
+    pl.savefig(f'{FIGURES_DIR}/fig3_treatment_outcomes_soc.png', dpi=200, bbox_inches='tight')
+    print(f'Saved {FIGURES_DIR}/fig3_treatment_outcomes_soc.png')
 
-    for i, ax in enumerate(fig.axes):
-        ax.text(-0.10, 1.06, chr(65 + i), transform=ax.transAxes,
-                fontsize=28, fontweight='bold', va='top')
-
-    pl.savefig(f'{FIGURES_DIR}/fig2_treatment_outcomes_soc.png', dpi=200, bbox_inches='tight')
-    print(f'Saved {FIGURES_DIR}/fig2_treatment_outcomes_soc.png')
+    # --- Cascade figures ---
+    fig2, axes2 = pl.subplots(1, 2, figsize=(22, 10))
+    plot_gud_cascade(annual, cs, axes2[0])
+    plot_congenital_cascade(annual, cs, axes2[1])
+    pl.tight_layout()
+    pl.savefig(f'{FIGURES_DIR}/fig2_cascades_soc.png', dpi=200, bbox_inches='tight')
+    print(f'Saved {FIGURES_DIR}/fig2_cascades_soc.png')

@@ -1,5 +1,5 @@
 """
-Supplementary Figure S1: Additional syphilis epidemiology diagnostics.
+Additional syphilis epidemiology diagnostics (optional/exploratory, not in manuscript).
 
 Panels:
     A: All syphilis prevalence by age and sex work status
