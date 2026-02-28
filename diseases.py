@@ -24,7 +24,7 @@ def make_diseases(which='all'):
     if which in ['all', 'stis']:
         syph = sti.Syphilis(
             beta_m2f=0.15,
-            beta_m2c=1.,
+            beta_m2c=0.075,
             eff_condom=0.5,
             rel_trans_primary=5,                      # High: primary drives ~50-60% of transmission
             rel_trans_secondary=1,                    # Moderate: ~25-30% of transmission
