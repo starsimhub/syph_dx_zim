@@ -1,16 +1,15 @@
 """
 Plot syphilis and HIV epidemiology in Zimbabwe: Fig 1 in manuscript.
 
-Row 1 (3 panels, equal width):
+Row 1 (3 panels):
     A: Active syphilis prevalence by age and sex work status + ZIMPHIA
-    B: All syphilis prevalence by age and sex work status + WHO
-    C: Ever exposed to syphilis (time series by sex/FSW)
+    B: Syphilis transmission by disease stage
+    C: Syphilis infections by sex work status (%)
 
-Row 2 (4 panels: 3 narrow + 1 wider):
-    D: Active syphilis prevalence by HIV status (bars + ZIMPHIA)
-    E: Syphilis transmission by disease stage
-    F: Syphilis infections by sex work status (%)
-    G: HIV prevalence by age + ZIMPHIA 2016 & 2020
+Row 2 (3 panels):
+    D: Syphilis prevalence ratio HIV+/HIV- over time
+    E: HIV infections by sex work status (%)
+    F: HIV prevalence by age + ZIMPHIA 2016 & 2020
 """
 
 import sciris as sc
@@ -157,80 +156,12 @@ def plot_prev_by_sw(sw_prev_df, ax, prev_col='active_prevalence', title=None,
     ax.legend(frameon=False, fontsize=9, ncol=2)
 
 
-def plot_ever_exposed_ts(cs, ax, start_year=1995):
-    """Panel C: Ever exposed to syphilis over time, by sex and FSW status"""
-    years = cs.index[cs.index >= start_year]
-
-    for col, color, label in [
-        ('epi_ts.syph_ever_exposed_fsw', F_COLOR, 'FSW'),
-        ('epi_ts.syph_ever_exposed_f', F_COLOR_LIGHT, 'All girls/women'),
-        ('epi_ts.syph_ever_exposed_m', M_COLOR_LIGHT, 'All boys/men'),
-    ]:
-        med = cs.loc[years, (col, '50%')] * 100
-        lo = cs.loc[years, (col, '10%')] * 100
-        hi = cs.loc[years, (col, '90%')] * 100
-        ax.fill_between(years, lo, hi, alpha=0.15, color=color)
-        ax.plot(years, med, color=color, label=label, linewidth=2)
-
-    # ZIMPHIA 2016 ever-exposed data points
-    kw = dict(marker='D', s=80, zorder=5, edgecolors='k', linewidths=0.5)
-    ax.scatter([2016], [ZIMPHIA_SYPH['ever_exposed_f'] * 100], color=F_COLOR_LIGHT,
-               label='ZIMPHIA 2016', **kw)
-    ax.scatter([2016], [ZIMPHIA_SYPH['ever_exposed_m'] * 100], color=M_COLOR_LIGHT, **kw)
-
-    # WHO GHO FSW syphilis seroprevalence (~30%, treponemal = ever-exposed)
-    ax.scatter([2016], [WHO_FSW_SYPH_PREV * 100], color=F_COLOR,
-               marker='D', s=80, zorder=5, edgecolors='k', linewidths=0.5, label='WHO GHO FSW')
-
-    ax.legend(frameon=False, fontsize=11, loc='upper left')
-    ax.set_ylabel('Prevalence (%)')
-    ax.set_title('Ever exposed to syphilis')
-    ax.set_ylim(bottom=0)
-    ax.set_xlim(start_year, 2025)
-
-
-def plot_syph_prev_by_hiv_bars(cs, ax, year=2016):
-    """Panel D: Active syphilis prevalence by HIV status — bars with error bars + ZIMPHIA"""
-    x = np.array([0, 1])
-    labels = ['HIV+', 'HIV\u2212']
-    colors = [HIV_POS_COLOR, HIV_NEG_COLOR]
-    cols = ['active_coinfection_stats.syph_prev_has_hiv', 'active_coinfection_stats.syph_prev_no_hiv']
-
-    meds = []
-    los = []
-    his = []
-    for col in cols:
-        med = cs.loc[year, (col, '50%')] * 100
-        lo = cs.loc[year, (col, '10%')] * 100
-        hi = cs.loc[year, (col, '90%')] * 100
-        meds.append(med)
-        los.append(med - lo)
-        his.append(hi - med)
-
-    bars = ax.bar(x, meds, color=colors, alpha=0.85, edgecolor='white', linewidth=0.5, width=0.6)
-    ax.errorbar(x, meds, yerr=[los, his], fmt='none', ecolor='k', capsize=5, linewidth=1.5)
-
-    # ZIMPHIA data as diamonds
-    kw = dict(marker='D', s=80, zorder=5, edgecolors='k', linewidths=0.5)
-    ax.scatter(0, ZIMPHIA_SYPH['active_hiv_pos'] * 100, color=HIV_POS_COLOR,
-               label='ZIMPHIA 2016', **kw)
-    ax.scatter(1, ZIMPHIA_SYPH['active_hiv_neg'] * 100, color=HIV_NEG_COLOR, **kw)
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel('Active syphilis\nprevalence (%)')
-    ax.set_title('Syphilis by\nHIV status')
-    ax.set_ylim(bottom=0)
-    ax.legend(frameon=False, fontsize=11, loc='upper right')
-
-
 def plot_transmission_by_stage_bars(cs, ax):
-    """Panel E: 3 bars showing % of sexual transmission by stage"""
+    """3 bars showing % of sexual transmission by stage"""
     stages = ['primary', 'secondary', 'early']
     labels = ['Primary', 'Secondary', 'Early\nlatent']
     colors = ['#e41a1c', '#ff7f00', '#984ea3']
 
-    # Get cumulative totals across all years
     total = 0
     vals = {}
     for stage in stages + ['late', 'tertiary']:
@@ -248,13 +179,13 @@ def plot_transmission_by_stage_bars(cs, ax):
                 f'{pct:.0f}%', ha='center', va='bottom', fontsize=13, fontweight='bold')
 
     ax.set_ylabel('Share of sexual\ntransmissions (%)')
-    ax.set_title('Transmission\nby stage')
+    ax.set_title('Syphilis transmission\nby disease stage')
     ax.set_ylim(0, 80)
     ax.set_xlabel('')
 
 
 def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019):
-    """Panel F: Infections by sex work status as percentages"""
+    """Infections by sex work status as percentages"""
     groups = {'fsw': 'Women in transactional sex', 'client': 'Men in transactional sex',
                'non_fsw': 'Other girls/women', 'non_client': 'Other boys/men'}
     colors = [F_COLOR, M_COLOR, F_COLOR_LIGHT, M_COLOR_LIGHT]
@@ -282,7 +213,8 @@ def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019
                          label_type='center', fontsize=10)
         bottom += pct
 
-    ax.set_title(f'Infections\n{start_year}\u2013{end_year} avg')
+    disease_label = 'Syphilis' if disease == 'syph' else 'HIV'
+    ax.set_title(f'{disease_label} infections\n{start_year}\u2013{end_year} avg')
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 2.3)
     ax.set_xlabel('%')
@@ -292,8 +224,40 @@ def plot_infections_by_sw_pct(sw_df, disease, ax, start_year=2000, end_year=2019
               ncol=2, columnspacing=0.8, handlelength=1.0, labelspacing=0.3)
 
 
+def plot_syph_hiv_ratio_ts(cs, ax, start_year=1995):
+    """Ratio of syphilis prevalence in HIV+ vs HIV- over time"""
+    years = cs.index[cs.index >= start_year]
+
+    hiv_pos = cs.loc[years, ('coinfection_stats.syph_prev_has_hiv', '50%')]
+    hiv_neg = cs.loc[years, ('coinfection_stats.syph_prev_no_hiv', '50%')]
+    ratio_med = hiv_pos / hiv_neg
+
+    hiv_pos_lo = cs.loc[years, ('coinfection_stats.syph_prev_has_hiv', '10%')]
+    hiv_neg_hi = cs.loc[years, ('coinfection_stats.syph_prev_no_hiv', '90%')]
+    hiv_pos_hi = cs.loc[years, ('coinfection_stats.syph_prev_has_hiv', '90%')]
+    hiv_neg_lo = cs.loc[years, ('coinfection_stats.syph_prev_no_hiv', '10%')]
+    ratio_lo = hiv_pos_lo / hiv_neg_hi
+    ratio_hi = hiv_pos_hi / hiv_neg_lo
+
+    ax.fill_between(years, ratio_lo, ratio_hi, alpha=0.15, color='#555555')
+    ax.plot(years, ratio_med, color='#555555', linewidth=2, label='Model')
+
+    # ZIMPHIA 2016 ratio: 2.9% / 0.4% = 7.25
+    zimphia_ratio = ZIMPHIA_SYPH['active_hiv_pos'] / ZIMPHIA_SYPH['active_hiv_neg']
+    ax.scatter([2016], [zimphia_ratio], color=HIV_POS_COLOR,
+               marker='D', s=80, zorder=5, edgecolors='k', linewidths=0.5,
+               label=f'ZIMPHIA 2016 ({zimphia_ratio:.1f}x)')
+
+    ax.axhline(y=1, color='grey', linestyle='--', linewidth=0.8, alpha=0.5)
+    ax.legend(frameon=False, fontsize=11)
+    ax.set_ylabel('Prevalence ratio')
+    ax.set_title('Syphilis prevalence\nHIV+ / HIV\u2212')
+    ax.set_ylim(bottom=0)
+    ax.set_xlim(start_year, 2025)
+
+
 def plot_hiv_prev_by_age(epi_df, ax):
-    """Panel G: HIV prevalence by age and sex + ZIMPHIA 2016 & 2020, with 15-65 aggregate"""
+    """HIV prevalence by age and sex + ZIMPHIA 2016 & 2020, with 15-65 aggregate"""
     thisdf = epi_df.loc[(epi_df.disease == 'hiv') &
                         (epi_df.age != '0-15') &
                         (epi_df.age != '65+')].copy()
@@ -353,7 +317,7 @@ def plot_hiv_prev_by_age(epi_df, ax):
             ax.scatter(x[j] + m_offset, m_val * 100, color=M_COLOR, **kw_2020)
             first_2020 = False
 
-    # ZIMPHIA aggregate on 15-65 bar (2016: F=14.8%, M=8.6%; 2020: F=14.8%, M=8.6%)
+    # ZIMPHIA aggregate on 15-65 bar
     ax.scatter(agg_x + f_offset, 14.8, color=F_COLOR, **kw_2016)
     ax.scatter(agg_x + m_offset, 8.6, color=M_COLOR, **kw_2016)
     ax.scatter(agg_x + f_offset, 14.8, color=F_COLOR, **kw_2020)
@@ -376,42 +340,31 @@ if __name__ == '__main__':
     cs = sc.loadobj('results/zimbabwe_calib_stats_all.df')
 
     set_font(size=18)
-    fig = pl.figure(figsize=(24, 14))
+    fig = pl.figure(figsize=(22, 14))
+    gs = GridSpec(2, 3, left=0.06, right=0.98, bottom=0.06, top=0.93,
+                  wspace=0.28, hspace=0.38)
 
-    # Row 1: 3 equal-width syphilis by-age panels
-    gs1 = GridSpec(1, 3, left=0.05, right=0.98, bottom=0.55, top=0.93, wspace=0.28)
-
-    # Row 2: 3 narrow panels + 1 wider panel
-    gs2 = GridSpec(1, 4, left=0.05, right=0.98, bottom=0.06, top=0.44,
-                   wspace=0.32, width_ratios=[1, 1, 1, 1.5])
-
-    # --- Row 1 ---
-    # Panel A: active syphilis (primary+secondary) + ZIMPHIA "active" by age
-    ax = fig.add_subplot(gs1[0, 0])
+    # --- Row 1: Syphilis ---
+    ax = fig.add_subplot(gs[0, 0])
     plot_prev_by_sw(sw_prev_df, ax=ax, prev_col='active_prevalence',
                     title='Active syphilis prevalence\nby sex work status',
                     show_zimphia=True, zimphia_by_age=ZIMPHIA_SYPH_ACTIVE_BY_AGE)
 
-    # Panel B: all syphilis (any stage including latent)
-    ax = fig.add_subplot(gs1[0, 1])
-    plot_prev_by_sw(sw_prev_df, ax=ax, prev_col='prevalence',
-                    title='All syphilis prevalence\nby sex work status')
-
-    ax = fig.add_subplot(gs1[0, 2])
-    plot_ever_exposed_ts(cs, ax)
-
-    # --- Row 2 ---
-    ax = fig.add_subplot(gs2[0, 0])
-    plot_syph_prev_by_hiv_bars(cs, ax)
-
-    ax = fig.add_subplot(gs2[0, 1])
-    plot_transmission_by_stage_bars(cs, ax)
-
-    ax = fig.add_subplot(gs2[0, 2])
+    ax = fig.add_subplot(gs[0, 1])
     plot_infections_by_sw_pct(sw_df, disease='syph', ax=ax)
 
-    ax = fig.add_subplot(gs2[0, 3])
+    ax = fig.add_subplot(gs[0, 2])
+    plot_transmission_by_stage_bars(cs, ax)
+
+    # --- Row 2: HIV + coinfection ---
+    ax = fig.add_subplot(gs[1, 0])
     plot_hiv_prev_by_age(epi_df, ax)
+
+    ax = fig.add_subplot(gs[1, 1])
+    plot_infections_by_sw_pct(sw_df, disease='hiv', ax=ax)
+
+    ax = fig.add_subplot(gs[1, 2])
+    plot_syph_hiv_ratio_ts(cs, ax)
 
     for i, ax in enumerate(fig.axes):
         ax.text(-0.10, 1.06, chr(65 + i), transform=ax.transAxes,

@@ -140,6 +140,8 @@ class epi_ts(ss.Analyzer):
         super().__init__()
         return
 
+    age_bins = [(15, 20), (20, 25), (25, 30), (30, 35), (35, 50), (50, 65)]
+
     def init_results(self):
         super().init_results()
         results = [
@@ -156,6 +158,10 @@ class epi_ts(ss.Analyzer):
             ss.Result('syph_pct_reinfected', dtype=float, scale=False),
             ss.Result('syph_mean_n_infections', dtype=float, scale=False),
         ]
+        # HIV prevalence by age and sex
+        for sex in ['f', 'm']:
+            for lo, hi in self.age_bins:
+                results.append(ss.Result(f'hiv_prev_{sex}_{lo}_{hi}', dtype=float, scale=False))
         self.define_results(*results)
         return
 
@@ -191,6 +197,15 @@ class epi_ts(ss.Analyzer):
             self.results['syph_ever_exposed_m'][ti] = float(np.mean(syph.ever_exposed[male]))
         if n_fsw > 0:
             self.results['syph_ever_exposed_fsw'][ti] = float(np.mean(syph.ever_exposed[fsw]))
+
+        # HIV prevalence by age and sex
+        hiv = sim.diseases.hiv
+        for sex_key, sex_bool in [('f', ppl.female), ('m', ppl.male)]:
+            for lo, hi in self.age_bins:
+                in_bin = alive & sex_bool & (ppl.age >= lo) & (ppl.age < hi)
+                n_bin = in_bin.count()
+                if n_bin > 0:
+                    self.results[f'hiv_prev_{sex_key}_{lo}_{hi}'][ti] = float(np.mean(hiv.infected[in_bin]))
 
         # Reinfection stats among ever-exposed alive adults
         ever_exp_alive = syph.ever_exposed & ppl.alive
