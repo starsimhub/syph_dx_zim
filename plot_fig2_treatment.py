@@ -237,20 +237,17 @@ def plot_gud_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR):
     """GUD syndromic care-seeking cascade: per 100 primary syphilis infections"""
 
     # Compute cascade from model outputs
+    dt_per_year = 12  # Monthly timesteps
     new_inf = cs.loc[cs.index >= start_year, ('syph.new_infections', '50%')].mean()
     new_inf_f = cs.loc[cs.index >= start_year, ('syph.new_infections_f', '50%')].mean()
     f_frac = new_inf_f / new_inf
     p_visible = f_frac * 0.3 + (1 - f_frac) * 0.5  # p_symp_primary: 30%F, 50%M
 
-    # Scale factor between treatment_outcomes df and calib_stats
-    n_active_to = df[(df.metric == 'n_active') & (df.year_int >= start_year)].set_index('year_int')['mean'].mean()
-    n_active_cs = cs.loc[cs.index >= start_year, ('syph.n_active', '50%')].mean()
-    scale = n_active_cs / n_active_to if n_active_to > 0 else 1
-
-    # GUD treatment outcomes (scaled)
-    gud_success = get_metric(df, 'gud_syndromic_success', start_year, end_year).mean() * scale
-    gud_missed = get_metric(df, 'gud_syndromic_missed', start_year, end_year).mean() * scale
-    gud_failure = get_metric(df, 'gud_syndromic_failure', start_year, end_year).mean() * scale
+    # GUD treatment outcomes: annualize per-timestep averages (× dt_per_year)
+    # to match annual new_infections from calib_stats
+    gud_success = get_metric(df, 'gud_syndromic_success', start_year, end_year).mean() * dt_per_year
+    gud_missed = get_metric(df, 'gud_syndromic_missed', start_year, end_year).mean() * dt_per_year
+    gud_failure = get_metric(df, 'gud_syndromic_failure', start_year, end_year).mean() * dt_per_year
 
     # Cascade per 100 primary infections
     visible_total = new_inf * p_visible
@@ -314,39 +311,50 @@ def plot_gud_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR):
 
 
 def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_attendance=0.90):
-    """Congenital prevention cascade: per 100 at-risk pregnancies"""
+    """Congenital prevention cascade: per 100 at-risk pregnancies (mother infected with syphilis).
+
+    Denominator uses pregnant syphilis prevalence from calib_stats.
+    Treatment flows from treatment_outcomes are per-timestep averages (monthly dt),
+    so they are annualized (×12) before use alongside annual calib_stats totals.
+    """
     cols = cs.columns.get_level_values(0)
+    dt_per_year = 12  # Monthly timesteps
 
-    # Scale factor
-    n_active_to = df[(df.metric == 'n_active') & (df.year_int >= start_year)].set_index('year_int')['mean'].mean()
-    n_active_cs = cs.loc[cs.index >= start_year, ('syph.n_active', '50%')].mean()
-    scale = n_active_cs / n_active_to if n_active_to > 0 else 1
+    # ANC cascade: treatment_outcomes stores per-TIMESTEP averages (monthly dt=12/yr),
+    # while calib_stats MTC values are ANNUAL totals (via to_df resample='year').
+    # Annualize treatment flows (× dt_per_year). Both sources are already nationally
+    # scaled, so no additional cross-source scaling — the cascade normalizes to per-100.
+    anc_success = get_metric(df, 'anc_screen_success', start_year, end_year).mean() * dt_per_year
+    anc_missed = get_metric(df, 'anc_screen_missed', start_year, end_year).mean() * dt_per_year
+    anc_failure = get_metric(df, 'anc_screen_failure', start_year, end_year).mean() * dt_per_year
+    nb_success = get_metric(df, 'newborn_success', start_year, end_year).mean() * dt_per_year
 
-    # ANC cascade (from treatment_outcomes, scaled)
-    anc_success = get_metric(df, 'anc_screen_success', start_year, end_year).mean() * scale
-    anc_missed = get_metric(df, 'anc_screen_missed', start_year, end_year).mean() * scale
-    anc_failure = get_metric(df, 'anc_screen_failure', start_year, end_year).mean() * scale
-    nb_success = get_metric(df, 'newborn_success', start_year, end_year).mean() * scale
-
-    # Total MTC transmissions (occurred despite interventions)
+    # Total MTC transmissions per year (annual totals from calib_stats)
     mtc_total = sum(
         cs.loc[cs.index >= start_year, (f'transmission_by_stage.new_mtc_{s}', '50%')].mean()
         for s in ['primary', 'secondary', 'early', 'late', 'tertiary']
         if f'transmission_by_stage.new_mtc_{s}' in cols
     )
 
-    # Estimate total at-risk pregnancies
-    mothers_screened_active = anc_success + anc_missed + anc_failure
-    fetal_prevented = anc_success * 0.90  # ~90% avg fetal efficacy (mix of 98% and 75%)
-    total_at_risk = mtc_total + fetal_prevented
+    # Convert everything to "pregnancies" (not MTC events).
+    # beta_m2c=0.075/timestep over ~9 months → ~50% per-pregnancy MTC probability
+    p_mtc = 1 - (1 - 0.075)**9  # ≈ 0.50
 
-    # Normalize to 100
+    # Denominator: total infected pregnancies (in pregnancy units)
+    # = (MTC actual + MTC prevented) / p_mtc
+    fetal_prevented_mtc = anc_success * p_mtc * 0.90  # MTC events prevented by treatment
+    total_at_risk = (mtc_total + fetal_prevented_mtc) / p_mtc  # Convert to pregnancies
+
+    # Mothers screened: successfully treated + treatment failures + false negatives
+    mothers_screened_active = anc_success + anc_missed + anc_failure
+
+    # Normalize to per 100 at-risk pregnancies
     f = 100 / total_at_risk if total_at_risk > 0 else 1
-    attend_anc = 100 * anc_attendance  # ~90% ANC attendance (Zimbabwe DHS)
-    screened = mothers_screened_active * f  # Model-derived: screened = attend × screening_rate
-    detected = (anc_success + anc_failure) * f  # tested positive
-    treated = anc_success * f  # mother treated
-    fetus_cured = fetal_prevented * f
+    attend_anc = 100 * anc_attendance
+    screened = mothers_screened_active * f
+    detected = (anc_success + anc_failure) * f  # tested positive (infected who tested pos)
+    treated = anc_success * f  # mother treated successfully
+    fetus_cured = anc_success * 0.90 * f  # 90% avg fetal treatment efficacy
     remaining = 100 - fetus_cured
     nb_saved = nb_success / mtc_total * remaining if mtc_total > 0 else 0
 
@@ -362,10 +370,13 @@ def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_
     ]
     loss_labels = ['', 'No ANC', 'Not screened', 'False negative', 'Not treated', 'Treatment failure']
 
+    # Newborn section: known = mother was ANC-positive but baby still at risk
+    known_at_risk = screened - fetus_cured  # ANC false neg + fetal treatment failure
+
     # Colors
     bar_color = '#377eb8'
     loss_color = '#dddddd'
-    y = np.arange(len(steps) + 3)[::-1]  # Extra space for newborn section
+    y = np.arange(len(steps) + 4)[::-1]  # Extra space for newborn section (3 bars + gap)
 
     # ANC bars
     ax.barh(y[0:len(steps)], steps, color=bar_color, alpha=0.85,
@@ -373,12 +384,17 @@ def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_
     for i in range(1, len(steps)):
         ax.barh(y[i], steps[i-1] - steps[i], left=steps[i], color=loss_color, alpha=0.5, height=0.7)
 
-    # Newborn section
-    nb_steps = [remaining, nb_saved]
-    nb_labels = ['Still at risk\nat birth', 'Newborn\ntreated']
-    nb_y = y[len(steps)+1:len(steps)+3]
-    ax.barh(nb_y, nb_steps, color='#e41a1c', alpha=0.7, edgecolor='white', linewidth=0.5, height=0.7)
+    # Newborn section: 3 bars
+    nb_steps = [remaining, known_at_risk, nb_saved]
+    nb_labels = ['Still at risk\nat birth', 'Flagged for\nnewborn test', 'Newborn\ntreated']
+    nb_y = y[len(steps)+1:len(steps)+4]
+    # "Still at risk" bar
+    ax.barh(nb_y[0], remaining, color='#e41a1c', alpha=0.7, edgecolor='white', linewidth=0.5, height=0.7)
     ax.barh(nb_y[0], 100 - remaining, left=remaining, color=bar_color, alpha=0.3, height=0.7)
+    # "Known" and "treated" bars
+    ax.barh(nb_y[1], known_at_risk, color='#e41a1c', alpha=0.7, edgecolor='white', linewidth=0.5, height=0.7)
+    ax.barh(nb_y[1], remaining - known_at_risk, left=known_at_risk, color=loss_color, alpha=0.5, height=0.7)
+    ax.barh(nb_y[2], nb_saved, color='#e41a1c', alpha=0.7, edgecolor='white', linewidth=0.5, height=0.7)
 
     # Labels on bars
     all_steps = list(steps) + [None] + list(nb_steps)
@@ -397,6 +413,10 @@ def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_
         if lost > 1:
             ax.text(steps[i-1] - 0.5, y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
                     ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
+
+    # Newborn loss annotations
+    ax.text(remaining - 0.5, nb_y[1] + 0.35, f'\u2212{remaining - known_at_risk:.0f}: Mother not screened',
+            ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
 
     # Section divider
     sep_y = (y[len(steps)-1] + y[len(steps)]) / 2

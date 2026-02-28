@@ -20,7 +20,9 @@
 
 [Diagnostic Testing	6](#diagnostic-testing)
 
-[**References	6**](#references)
+[Calibration outputs	7](#calibration-outputs)
+
+[**References	7**](#references)
 
 # 
 
@@ -176,6 +178,16 @@ We jointly calibrated 15 model parameters to Zimbabwe-specific HIV and syphilis 
 | rel\_kp\_test | KP syphilis screening rate multiplier | 0.50–1.70 | 0.88 (0.53–1.61) |
 
 Table S6: Calibrated model parameters. Prior ranges define the bounds of a uniform distribution explored by the Optuna sampler. Posterior estimates are computed from the top 200 parameter sets (out of 2,000 trials), ranked by weighted mean squared error mismatch to calibration targets.
+
+## Calibration outputs {#calibration-outputs}
+
+### Sexual network structure (Figure S2)
+
+Figure S2 shows the structural properties of the calibrated sexual network. Panel A shows the distribution of lifetime sexual partners by sex among sexually debuted agents. Women have a narrower distribution concentrated at lower partner counts, while men (particularly those in higher risk groups) accumulate more partners over their lifetime. Panel B shows the age mixing pattern, with violin plots of the male–female age difference by female age group. Younger women (<20) tend to have older male partners (median age difference ~5 years), while the age gap narrows for older women, consistent with observed patterns of age-disparate partnerships in sub-Saharan Africa. Panel C shows the risk group composition by sex: approximately two-thirds of both women and men are in the low-risk group, with smaller proportions in the medium- and high-risk groups. Panel D shows the cumulative distribution of age at sexual debut, with women debuting earlier than men (median ~18 vs ~20 years). Panel E shows the proportion of women with a stable partner and the proportion with one or more casual partners by age. Stable partnerships peak at around age 30–35, while casual partnerships are more common among younger women. Panel F shows condom use probability over time by partnership type, with higher condom use in cross-risk and FSW–client partnerships compared to stable low-risk partnerships, and increasing condom use over time reflecting behavioral change associated with the HIV response.
+
+### HIV calibration (Figure S3)
+
+Figure S3 shows the model's calibration to HIV epidemiological data for Zimbabwe. The six panels compare model outputs (median and 10th–90th percentile range across the top 200 calibrated parameter sets) against UNAIDS estimates and survey data. Panel A shows HIV prevalence among adults aged 15–49, reproducing the epidemic peak in the late 1990s and subsequent decline driven by behavioral change and ART scale-up. Panel B shows new HIV infections, capturing the sharp decline from peak incidence in the early 1990s. Panel C shows the number of people on ART, matching the rapid scale-up from 2004 onwards. Panel D shows the total number of people living with HIV, which has stabilized as declining incidence is offset by improved survival on ART. Panel E shows HIV-related deaths, peaking in the early 2000s before declining with ART availability. Panel F shows the total population size, calibrated to UN population estimates. The model reproduces the demographic impact of the HIV epidemic, including the slowing of population growth during peak mortality and subsequent recovery.
 
 # References {#references}
 

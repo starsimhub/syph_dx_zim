@@ -100,7 +100,7 @@ def plot_risk_groups(data, ax):
     ax.set_xticklabels(sexes)
     ax.set_ylabel('Proportion (%)')
     ax.set_title('Risk group\ncomposition')
-    ax.set_ylim(0, 105)
+    ax.set_ylim(0, 118)
     ax.legend(frameon=False, fontsize=11, loc='upper right')
 
 

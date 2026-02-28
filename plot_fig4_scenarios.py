@@ -124,37 +124,48 @@ def plot_overtreatment_ts(dfs, ax, start_year=2025, end_year=2039):
 
 
 def plot_overtreatment_bars(dfs, ax, start_year=2028, end_year=2039):
-    """Panel C: Overtreatment rate bars — adult pathways for adult scenarios, newborn for CS"""
-    x = np.arange(len(SCENARIOS))
-    rates = []
+    """Panel C: Overtreatment rate bars — adult scenarios + newborn SOC vs CS comparison"""
+    # Bar groups: 4 adult scenarios + separator + 2 newborn scenarios
+    bar_keys = ['soc', 'gud', 'conf', 'both', 'nb_soc', 'nb_cs']
+    bar_labels = ['SOC', 'GUD\nPOC', 'Confirm.', 'Both', 'SOC', 'Congenital\nPOC']
+    bar_colors = [SCENARIO_COLORS['soc'], SCENARIO_COLORS['gud'], SCENARIO_COLORS['conf'],
+                  SCENARIO_COLORS['both'], '#555555', SCENARIO_COLORS['cs']]
 
-    for scen in SCENARIOS:
+    rates = []
+    for key in bar_keys:
+        if key.startswith('nb_'):
+            scen = key[3:]  # 'soc' or 'cs'
+            pws = NEWBORN_PATHWAYS
+        else:
+            scen = key
+            pws = ADULT_PATHWAYS
+
         if scen not in dfs:
             rates.append(0)
             continue
         ann = pivot_annual(dfs[scen], start_year, end_year)
-        if scen == 'cs':
-            # CS: compute newborn overtreatment rate
-            treated = get_pathway_total(ann, 'treated', NEWBORN_PATHWAYS, start_year, end_year)
-            unnecessary = get_pathway_total(ann, 'unnecessary', NEWBORN_PATHWAYS, start_year, end_year)
-        else:
-            # Adult scenarios: compute adult overtreatment rate
-            treated = get_pathway_total(ann, 'treated', ADULT_PATHWAYS, start_year, end_year)
-            unnecessary = get_pathway_total(ann, 'unnecessary', ADULT_PATHWAYS, start_year, end_year)
-
+        treated = get_pathway_total(ann, 'treated', pws, start_year, end_year)
+        unnecessary = get_pathway_total(ann, 'unnecessary', pws, start_year, end_year)
         total_treated = treated.sum()
         total_unnecessary = unnecessary.sum()
-        rate = total_unnecessary / total_treated * 100 if total_treated > 0 else 0
-        rates.append(rate)
+        rates.append(total_unnecessary / total_treated * 100 if total_treated > 0 else 0)
 
-    colors = [SCENARIO_COLORS[s] for s in SCENARIOS]
-    bars = ax.bar(x, rates, color=colors, alpha=0.85, edgecolor='white', linewidth=0.5, width=0.6)
+    # Add a gap between adult (0-3) and newborn (4-5) groups
+    x = np.array([0, 1, 2, 3, 4.3, 5.3])
+    bars = ax.bar(x, rates, color=bar_colors, alpha=0.85, edgecolor='white', linewidth=0.5, width=0.6)
     for bar, rate in zip(bars, rates):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+        ax.text(bar.get_x() + bar.get_width()/2, max(bar.get_height(), 0) + 1,
                 f'{rate:.0f}%', ha='center', va='bottom', fontsize=14, fontweight='bold')
 
+    # Separator line between adult and newborn groups
+    ax.axvline(x=3.65, color='grey', linewidth=1, linestyle='-', alpha=0.3)
+
+    # Group labels inside panel at top
+    ax.text(1.5, 108, 'Adult', ha='center', va='top', fontsize=16, fontweight='bold')
+    ax.text(4.8, 108, 'Newborn', ha='center', va='top', fontsize=16, fontweight='bold')
+
     ax.set_xticks(x)
-    ax.set_xticklabels([SCENARIO_LABELS[s] for s in SCENARIOS])
+    ax.set_xticklabels(bar_labels)
     ax.set_ylabel('Overtreatment rate (%)')
     ax.set_title(f'(C) Overtreatment rate\n{start_year}\u2013{end_year}')
     ax.set_ylim(0, 110)
@@ -284,7 +295,7 @@ if __name__ == '__main__':
     set_font(size=20)
     fig = pl.figure(figsize=(22, 8))
     gs = GridSpec(1, 3, left=0.05, right=0.98, bottom=0.10, top=0.88,
-                  wspace=0.25)
+                  wspace=0.18)
 
     ax = fig.add_subplot(gs[0, 0])
     plot_treatments_ts(dfs, ax)

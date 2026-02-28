@@ -13,7 +13,7 @@ newborn_testing,soc,treat,0.1,0.1,0.1,0.1
 newborn_testing,soc,exam,0.1,0.1,0.1,0.1
 newborn_testing,soc,poc_cs,0,,,
 newborn_testing,soc,nothing,0.8,0.8,0.8,0.8
-newborn_testing,cs,treat,0.1,0.1,0.1,0.1
+newborn_testing,cs,treat,0.1,0.1,0.1,0
 newborn_testing,cs,exam,0.1,0.1,0.1,
-newborn_testing,cs,poc_cs,,,,0.9
+newborn_testing,cs,poc_cs,,,,1
 newborn_testing,cs,nothing,0.8,0.8,0.8,
