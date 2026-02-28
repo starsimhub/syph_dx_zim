@@ -83,13 +83,13 @@ HIV_NEG_COLOR = '#377eb8'
 
 
 def plot_prev_by_sw(sw_prev_df, ax, prev_col='active_prevalence', title=None,
-                    show_zimphia=False, zimphia_by_age=None):
+                    show_zimphia=False, zimphia_by_age=None, exclude_ages=None):
     """Prevalence by age with 3 bars (FSW/clients, all F, all M) + aggregated 15-65 bar"""
+    skip = {'0-15', '65+'} | set(exclude_ages or [])
     df = sw_prev_df[(sw_prev_df.disease == 'syph') &
-                    (sw_prev_df.age != '0-15') &
-                    (sw_prev_df.age != '65+')]
+                    (~sw_prev_df.age.isin(skip))]
 
-    age_groups = [a for a in df.age.unique() if a not in ('0-15', '65+')]
+    age_groups = [a for a in df.age.unique() if a not in skip]
 
     # 3 bars: SW women, all women, all men
     bar_specs = [
@@ -99,7 +99,10 @@ def plot_prev_by_sw(sw_prev_df, ax, prev_col='active_prevalence', title=None,
     ]
     n_bars = len(bar_specs)
     width = 0.25
-    all_labels = age_groups + ['15-65']
+    # Aggregate label reflects the actual age range included
+    first_lo = age_groups[0].split('-')[0] if age_groups else '15'
+    last_hi = age_groups[-1].split('-')[1] if age_groups else '65'
+    all_labels = age_groups + [f'{first_lo}-{last_hi}']
     x = np.arange(len(all_labels))
     agg_x = x[-1]
 
@@ -348,7 +351,8 @@ if __name__ == '__main__':
     ax = fig.add_subplot(gs[0, 0])
     plot_prev_by_sw(sw_prev_df, ax=ax, prev_col='active_prevalence',
                     title='Active syphilis prevalence\nby sex work status',
-                    show_zimphia=True, zimphia_by_age=ZIMPHIA_SYPH_ACTIVE_BY_AGE)
+                    show_zimphia=True, zimphia_by_age=ZIMPHIA_SYPH_ACTIVE_BY_AGE,
+                    exclude_ages=['50-65'])
 
     ax = fig.add_subplot(gs[0, 1])
     plot_infections_by_sw_pct(sw_df, disease='syph', ax=ax)
