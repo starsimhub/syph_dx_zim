@@ -117,8 +117,8 @@ def plot_overtreatment_ts(dfs, ax, start_year=2025, end_year=2039):
         ax.plot(rate.index, rate, color=color, linewidth=2.5, label=label)
 
     ax.set_ylabel('Overtreatment rate (%)')
-    ax.set_title('Adult overtreatment rate')
-    ax.legend(frameon=False, fontsize=12)
+    ax.set_title('(B) Adult overtreatment rate\nby scenario')
+    ax.legend(frameon=False, fontsize=14)
     ax.set_xlim(start_year, end_year)
     ax.set_ylim(0, 100)
 
@@ -156,7 +156,7 @@ def plot_overtreatment_bars(dfs, ax, start_year=2028, end_year=2039):
     ax.set_xticks(x)
     ax.set_xticklabels([SCENARIO_LABELS[s] for s in SCENARIOS])
     ax.set_ylabel('Overtreatment rate (%)')
-    ax.set_title(f'Overtreatment rate\n({start_year}\u2013{end_year})')
+    ax.set_title(f'(C) Overtreatment rate\n{start_year}\u2013{end_year}')
     ax.set_ylim(0, 110)
 
 
@@ -189,6 +189,89 @@ def print_summary_table(dfs, start_year=2028, end_year=2039):
     print(f'{"="*90}\n')
 
 
+def plot_congenital_cascade_comparison(dfs, cs, ax_soc, ax_cs, start_year=2028, end_year=2039, anc_attendance=0.90):
+    """Row 2: Side-by-side congenital cascades for SOC vs CS scenario"""
+    cols = cs.columns.get_level_values(0)
+
+    # MTC transmissions (same denominator for both — ANC pathway unchanged)
+    mtc_total = sum(
+        cs.loc[(cs.index >= start_year) & (cs.index <= end_year), (f'transmission_by_stage.new_mtc_{s}', '50%')].mean()
+        for s in ['primary', 'secondary', 'early', 'late', 'tertiary']
+        if f'transmission_by_stage.new_mtc_{s}' in cols
+    )
+
+    for scen_key, ax, title_prefix in [('soc', ax_soc, '(D) SOC'), ('cs', ax_cs, '(E) Newborn POC')]:
+        if scen_key not in dfs:
+            continue
+        df = dfs[scen_key]
+        sub = df[(df.year >= start_year) & (df.year <= end_year)]
+
+        anc_success = sub[sub.metric == 'anc_screen_success'].groupby('year').value.mean().mean()
+        anc_missed = sub[sub.metric == 'anc_screen_missed'].groupby('year').value.mean().mean()
+        anc_failure = sub[sub.metric == 'anc_screen_failure'].groupby('year').value.mean().mean()
+        nb_success = sub[sub.metric == 'newborn_success'].groupby('year').value.mean().mean()
+
+        mothers_screened_active = anc_success + anc_missed + anc_failure
+        fetal_prevented = anc_success * 0.90
+        total_at_risk = mtc_total + fetal_prevented
+
+        f = 100 / total_at_risk if total_at_risk > 0 else 1
+        attend_anc = 100 * anc_attendance
+        screened = mothers_screened_active * f
+        detected = (anc_success + anc_failure) * f
+        treated = anc_success * f
+        fetus_cured = fetal_prevented * f
+        remaining = 100 - fetus_cured
+        nb_saved = nb_success / mtc_total * remaining if mtc_total > 0 else 0
+
+        steps = [100, attend_anc, screened, detected, treated, fetus_cured]
+        labels = ['At-risk\npregnancies', 'Attend\nANC', 'Screened for\nsyphilis',
+                  'Test\npositive', 'Mother\ntreated', 'Fetus cured\nin utero']
+        loss_labels = ['', 'No ANC', 'Not screened', 'False negative', 'Not treated', 'Treatment failure']
+
+        bar_color = '#377eb8'
+        loss_color = '#dddddd'
+        y = np.arange(len(steps) + 3)[::-1]
+
+        ax.barh(y[0:len(steps)], steps, color=bar_color, alpha=0.85,
+                edgecolor='white', linewidth=0.5, height=0.7)
+        for i in range(1, len(steps)):
+            ax.barh(y[i], steps[i-1] - steps[i], left=steps[i], color=loss_color, alpha=0.5, height=0.7)
+
+        nb_steps = [remaining, nb_saved]
+        nb_labels_list = ['Still at risk\nat birth', 'Newborn\ntreated']
+        nb_y = y[len(steps)+1:len(steps)+3]
+        ax.barh(nb_y, nb_steps, color='#e41a1c', alpha=0.7, edgecolor='white', linewidth=0.5, height=0.7)
+        ax.barh(nb_y[0], 100 - remaining, left=remaining, color=bar_color, alpha=0.3, height=0.7)
+
+        all_steps = list(steps) + [None] + list(nb_steps)
+        all_labels = list(labels) + [''] + list(nb_labels_list)
+        for i, (step, _) in enumerate(zip(all_steps, all_labels)):
+            if step is None:
+                continue
+            if step >= 1:
+                ax.text(step + 1, y[i], f'{step:.0f}', ha='left', va='center', fontsize=16, fontweight='bold')
+            elif step > 0:
+                ax.text(max(step, 0) + 1, y[i], f'{step:.1f}', ha='left', va='center', fontsize=16, fontweight='bold')
+
+        for i in range(1, len(steps)):
+            lost = steps[i-1] - steps[i]
+            if lost > 1:
+                ax.text(steps[i-1] - 0.5, y[i] + 0.35, f'\u2212{lost:.0f}',
+                        ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
+
+        sep_y = (y[len(steps)-1] + y[len(steps)]) / 2
+        ax.axhline(y=sep_y, color='grey', linewidth=0.8, linestyle='--', alpha=0.4)
+
+        all_y_labels = list(labels) + [''] + list(nb_labels_list)
+        ax.set_yticks(y)
+        ax.set_yticklabels(all_y_labels)
+        ax.set_xlim(0, 115)
+        ax.set_title(f'{title_prefix}: congenital\nprevention cascade')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+
 if __name__ == '__main__':
 
     dfs = load_all_scenarios()
@@ -196,25 +279,35 @@ if __name__ == '__main__':
         print('No scenario results found. Run run_scenarios.py first.')
         exit()
 
+    cs = sc.loadobj(f'{RESULTS_DIR}/zimbabwe_calib_stats_all.df')
+
     print_summary_table(dfs)
 
-    set_font(size=18)
-    fig = pl.figure(figsize=(22, 7))
-    gs = GridSpec(1, 3, left=0.06, right=0.98, bottom=0.12, top=0.88,
-                  wspace=0.28)
+    set_font(size=20)
+    from matplotlib.gridspec import GridSpecFromSubplotSpec
 
-    ax = fig.add_subplot(gs[0, 0])
+    fig = pl.figure(figsize=(22, 16))
+    gs = GridSpec(2, 1, left=0.05, right=0.98, bottom=0.05, top=0.95,
+                  hspace=0.30, height_ratios=[1, 1.2])
+
+    # --- Row 1: Scenario time series + bars (3 panels) ---
+    gs_row1 = GridSpecFromSubplotSpec(1, 3, subplot_spec=gs[0], wspace=0.25)
+
+    ax = fig.add_subplot(gs_row1[0, 0])
     plot_treatments_ts(dfs, ax)
 
-    ax = fig.add_subplot(gs[0, 1])
+    ax = fig.add_subplot(gs_row1[0, 1])
     plot_overtreatment_ts(dfs, ax)
 
-    ax = fig.add_subplot(gs[0, 2])
+    ax = fig.add_subplot(gs_row1[0, 2])
     plot_overtreatment_bars(dfs, ax)
 
-    for i, ax in enumerate(fig.axes):
-        ax.text(-0.10, 1.06, chr(65 + i), transform=ax.transAxes,
-                fontsize=28, fontweight='bold', va='top')
+    # --- Row 2: Congenital cascade comparison (SOC vs CS) ---
+    gs_row2 = GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[1], wspace=0.20)
+
+    ax_soc = fig.add_subplot(gs_row2[0, 0])
+    ax_cs = fig.add_subplot(gs_row2[0, 1])
+    plot_congenital_cascade_comparison(dfs, cs, ax_soc, ax_cs)
 
     pl.savefig(f'{FIGURES_DIR}/fig4_scenario_comparison.png', dpi=200, bbox_inches='tight')
     print(f'Saved {FIGURES_DIR}/fig4_scenario_comparison.png')
