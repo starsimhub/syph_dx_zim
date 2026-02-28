@@ -89,17 +89,70 @@ def run_msim(n_pars=200, start=1985, stop=2026, scenario='soc'):
     return kept
 
 
+def prune_columns(df):
+    """
+    Drop columns we don't need for any figure or analysis.
+    Keeps ~100 columns from ~744. Safe to extend KEEP_PREFIXES if new
+    analyzers are added — anything not matching gets dropped.
+    """
+    KEEP_PREFIXES = [
+        # Core epi (calibration fig, Fig 1)
+        'time', 'n_alive',
+        'hiv.prevalence', 'hiv.n_infected', 'hiv.new_infections', 'hiv.new_deaths',
+        'hiv.n_on_art', 'hiv.n_diagnosed',
+        'syph.prevalence', 'syph.active_prevalence', 'syph.n_active', 'syph.n_infected',
+        'syph.new_infections', 'syph.new_reinfections',
+        'syph.new_congenital', 'syph.new_congenital_deaths',
+        'syph.new_treated', 'syph.new_treated_unnecessary',
+        'syph.detected_pregnant_prevalence', 'syph.delivery_prevalence',
+        'syph.new_nnds', 'syph.new_stillborns',
+
+        # Analyzers (Figs 1, 2, S1, S2)
+        'epi_ts.',
+        'coinfection_stats.',
+        'active_coinfection_stats.',
+        'transmission_by_stage.',
+        'sw_stats.',
+
+        # Treatment outcomes (Figs 2, 3) — keep totals only, drop sex/HIV disaggregation
+        'treatment_outcomes.gud_syndromic_treated', 'treatment_outcomes.gud_syndromic_success',
+        'treatment_outcomes.gud_syndromic_unnecessary', 'treatment_outcomes.gud_syndromic_failure',
+        'treatment_outcomes.anc_screen_treated', 'treatment_outcomes.anc_screen_success',
+        'treatment_outcomes.anc_screen_unnecessary', 'treatment_outcomes.anc_screen_failure',
+        'treatment_outcomes.kp_screen_treated', 'treatment_outcomes.kp_screen_success',
+        'treatment_outcomes.kp_screen_unnecessary', 'treatment_outcomes.kp_screen_failure',
+        'treatment_outcomes.plhiv_screen_treated', 'treatment_outcomes.plhiv_screen_success',
+        'treatment_outcomes.plhiv_screen_unnecessary', 'treatment_outcomes.plhiv_screen_failure',
+        'treatment_outcomes.newborn_treated', 'treatment_outcomes.newborn_success',
+        'treatment_outcomes.newborn_unnecessary', 'treatment_outcomes.newborn_failure',
+        'treatment_outcomes.secondary_rash_missed',
+        'treatment_outcomes.n_active', 'treatment_outcomes.n_infected',
+        'treatment_outcomes.gud_syndromic_missed', 'treatment_outcomes.anc_screen_missed',
+        'treatment_outcomes.kp_screen_missed', 'treatment_outcomes.plhiv_screen_missed',
+        'treatment_outcomes.newborn_missed',
+        # Stage at detection
+        'treatment_outcomes.gud_syndromic_stage_', 'treatment_outcomes.anc_screen_stage_',
+        'treatment_outcomes.kp_screen_stage_', 'treatment_outcomes.plhiv_screen_stage_',
+    ]
+
+    keep = [c for c in df.columns if any(c.startswith(p) or c == p for p in KEEP_PREFIXES)]
+    dropped = len(df.columns) - len(keep)
+    if dropped:
+        print(f'  Pruned {dropped} columns → {len(keep)} kept')
+    return df[keep]
+
+
 def save_results(sims):
     """
     Generate percentile statistics and save.
-    Uses sim.to_df() which captures ALL results automatically (~744 columns).
-    Only saves the stats (percentile bands), not the raw per-sim DataFrame.
+    Uses sim.to_df() then prunes to ~100 columns used by plot scripts.
     """
     print('Generating results from sims...')
 
     dfs = sc.autolist()
     for i, sim in enumerate(sims):
         df = sim.to_df(resample='year', use_years=True, sep='.')
+        df = prune_columns(df)
         df['par_idx'] = sim.par_idx
         dfs += df
         if (i + 1) % 50 == 0:
