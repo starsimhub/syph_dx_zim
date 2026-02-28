@@ -1,0 +1,220 @@
+"""
+Plot Figure 3: Scenario comparison — impact of novel diagnostics.
+
+Panels:
+    A: Total treatments per year — adult (solid) and newborn (dashed) lines
+    B: Adult overtreatment rate (%) over time (excl. CS — adult diagnostics only)
+    C: Overtreatment rate bars — adults for GUD/conf/both, newborn for CS
+"""
+
+import sciris as sc
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as pl
+from matplotlib.gridspec import GridSpec
+from utils import set_font
+
+RESULTS_DIR = 'results'
+FIGURES_DIR = 'figures'
+
+SCENARIOS = ['soc', 'gud', 'conf', 'both', 'cs']
+ADULT_SCENARIOS = ['soc', 'gud', 'conf', 'both']  # Scenarios that affect adult pathways
+
+SCENARIO_LABELS = {
+    'soc': 'Standard\nof care',
+    'gud': 'GUD\nPOC test',
+    'conf': 'Confirmatory\ntest',
+    'both': 'Both',
+    'cs': 'Newborn\nPOC CS',
+}
+SCENARIO_COLORS = {
+    'soc': '#555555',
+    'gud': '#e41a1c',
+    'conf': '#377eb8',
+    'both': '#4daf4a',
+    'cs': '#ff7f00',
+}
+
+ADULT_PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen']
+NEWBORN_PATHWAYS = ['newborn']
+ALL_PATHWAYS = ADULT_PATHWAYS + NEWBORN_PATHWAYS
+
+
+def load_all_scenarios():
+    dfs = {}
+    for scen in SCENARIOS:
+        try:
+            dfs[scen] = sc.loadobj(f'{RESULTS_DIR}/treatment_outcomes_{scen}.df')
+        except FileNotFoundError:
+            print(f'WARNING: {scen} results not found, skipping')
+    return dfs
+
+
+def pivot_annual(df, start_year=2025, end_year=2040):
+    df = df[(df.year >= start_year) & (df.year <= end_year)].copy()
+    df['year_int'] = df.year.astype(int)
+    return df.groupby(['scenario', 'year_int', 'metric']).value.agg(['mean', 'std']).reset_index()
+
+
+def get_metric(ann, metric, start_year=2025, end_year=2040):
+    sub = ann[(ann.metric == metric) & (ann.year_int >= start_year) & (ann.year_int <= end_year)]
+    return sub.set_index('year_int')['mean']
+
+
+def get_pathway_total(ann, metric_suffix, pathways, start_year=2025, end_year=2040):
+    """Sum a metric across specified pathways"""
+    total = None
+    for pw in pathways:
+        s = get_metric(ann, f'{pw}_{metric_suffix}', start_year, end_year)
+        if total is None:
+            total = s
+        else:
+            total = total.add(s, fill_value=0)
+    return total
+
+
+def plot_treatments_ts(dfs, ax, start_year=2025, end_year=2039):
+    """Panel A: Adult treatments (solid) and newborn treatments (dashed) by scenario"""
+    for scen in SCENARIOS:
+        if scen not in dfs:
+            continue
+        ann = pivot_annual(dfs[scen], start_year, end_year)
+        adult = get_pathway_total(ann, 'treated', ADULT_PATHWAYS, start_year, end_year)
+        newborn = get_pathway_total(ann, 'treated', NEWBORN_PATHWAYS, start_year, end_year)
+
+        color = SCENARIO_COLORS[scen]
+        label = SCENARIO_LABELS[scen].replace('\n', ' ')
+
+        # Only plot adult lines for adult scenarios, newborn for cs
+        if scen in ADULT_SCENARIOS:
+            ax.plot(adult.index, adult, color=color, linewidth=2.5, label=label)
+        if scen in ['soc', 'cs']:
+            ls = '-' if scen == 'cs' else '--'
+            lbl = label if scen == 'cs' else f'{label} (newborn)'
+            ax.plot(newborn.index, newborn, color=SCENARIO_COLORS[scen], linewidth=2,
+                    linestyle=ls, label=lbl, alpha=0.8)
+
+    ax.set_ylabel('Treatments per year')
+    ax.set_title('Syphilis treatments')
+    ax.legend(frameon=False, fontsize=11)
+    ax.set_xlim(start_year, end_year)
+    ax.set_ylim(bottom=0)
+    sc.SIticks(ax, axis='y')
+
+
+def plot_overtreatment_ts(dfs, ax, start_year=2025, end_year=2039):
+    """Panel B: Adult overtreatment rate (%) over time — adult scenarios only"""
+    for scen in ADULT_SCENARIOS:
+        if scen not in dfs:
+            continue
+        ann = pivot_annual(dfs[scen], start_year, end_year)
+        treated = get_pathway_total(ann, 'treated', ADULT_PATHWAYS, start_year, end_year)
+        unnecessary = get_pathway_total(ann, 'unnecessary', ADULT_PATHWAYS, start_year, end_year)
+        rate = (unnecessary / treated * 100).clip(upper=100)
+
+        color = SCENARIO_COLORS[scen]
+        label = SCENARIO_LABELS[scen].replace('\n', ' ')
+        ax.plot(rate.index, rate, color=color, linewidth=2.5, label=label)
+
+    ax.set_ylabel('Overtreatment rate (%)')
+    ax.set_title('Adult overtreatment rate')
+    ax.legend(frameon=False, fontsize=12)
+    ax.set_xlim(start_year, end_year)
+    ax.set_ylim(0, 100)
+
+
+def plot_overtreatment_bars(dfs, ax, start_year=2028, end_year=2039):
+    """Panel C: Overtreatment rate bars — adult pathways for adult scenarios, newborn for CS"""
+    x = np.arange(len(SCENARIOS))
+    rates = []
+
+    for scen in SCENARIOS:
+        if scen not in dfs:
+            rates.append(0)
+            continue
+        ann = pivot_annual(dfs[scen], start_year, end_year)
+        if scen == 'cs':
+            # CS: compute newborn overtreatment rate
+            treated = get_pathway_total(ann, 'treated', NEWBORN_PATHWAYS, start_year, end_year)
+            unnecessary = get_pathway_total(ann, 'unnecessary', NEWBORN_PATHWAYS, start_year, end_year)
+        else:
+            # Adult scenarios: compute adult overtreatment rate
+            treated = get_pathway_total(ann, 'treated', ADULT_PATHWAYS, start_year, end_year)
+            unnecessary = get_pathway_total(ann, 'unnecessary', ADULT_PATHWAYS, start_year, end_year)
+
+        total_treated = treated.sum()
+        total_unnecessary = unnecessary.sum()
+        rate = total_unnecessary / total_treated * 100 if total_treated > 0 else 0
+        rates.append(rate)
+
+    colors = [SCENARIO_COLORS[s] for s in SCENARIOS]
+    bars = ax.bar(x, rates, color=colors, alpha=0.85, edgecolor='white', linewidth=0.5, width=0.6)
+    for bar, rate in zip(bars, rates):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                f'{rate:.0f}%', ha='center', va='bottom', fontsize=14, fontweight='bold')
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([SCENARIO_LABELS[s] for s in SCENARIOS])
+    ax.set_ylabel('Overtreatment rate (%)')
+    ax.set_title(f'Overtreatment rate\n({start_year}\u2013{end_year})')
+    ax.set_ylim(0, 110)
+
+
+def print_summary_table(dfs, start_year=2028, end_year=2039):
+    """Print a summary table of key metrics across scenarios"""
+    print(f'\n{"="*90}')
+    print(f'Summary: {start_year}-{end_year} annual averages')
+    print(f'{"="*90}')
+    header = f'{"Scenario":<18} {"Treated/yr":>12} {"Correct/yr":>12} {"Overtreat/yr":>12} {"OT rate":>8} {"Pathways":>14}'
+    print(header)
+    print('-' * len(header))
+
+    for scen in SCENARIOS:
+        if scen not in dfs:
+            continue
+        ann = pivot_annual(dfs[scen], start_year, end_year)
+        if scen == 'cs':
+            pws = NEWBORN_PATHWAYS
+            pw_label = '(newborn)'
+        else:
+            pws = ADULT_PATHWAYS
+            pw_label = '(adult)'
+        treated = get_pathway_total(ann, 'treated', pws, start_year, end_year).mean()
+        success = get_pathway_total(ann, 'success', pws, start_year, end_year).mean()
+        unnecessary = get_pathway_total(ann, 'unnecessary', pws, start_year, end_year).mean()
+        ot_rate = unnecessary / treated * 100 if treated > 0 else 0
+        label = SCENARIO_LABELS[scen].replace('\n', ' ')
+        print(f'{label:<18} {treated:>12,.0f} {success:>12,.0f} {unnecessary:>12,.0f} {ot_rate:>7.1f}% {pw_label:>14}')
+
+    print(f'{"="*90}\n')
+
+
+if __name__ == '__main__':
+
+    dfs = load_all_scenarios()
+    if not dfs:
+        print('No scenario results found. Run run_scenarios.py first.')
+        exit()
+
+    print_summary_table(dfs)
+
+    set_font(size=18)
+    fig = pl.figure(figsize=(22, 7))
+    gs = GridSpec(1, 3, left=0.06, right=0.98, bottom=0.12, top=0.88,
+                  wspace=0.28)
+
+    ax = fig.add_subplot(gs[0, 0])
+    plot_treatments_ts(dfs, ax)
+
+    ax = fig.add_subplot(gs[0, 1])
+    plot_overtreatment_ts(dfs, ax)
+
+    ax = fig.add_subplot(gs[0, 2])
+    plot_overtreatment_bars(dfs, ax)
+
+    for i, ax in enumerate(fig.axes):
+        ax.text(-0.10, 1.06, chr(65 + i), transform=ax.transAxes,
+                fontsize=28, fontweight='bold', va='top')
+
+    pl.savefig(f'{FIGURES_DIR}/fig3_scenario_comparison.png', dpi=200, bbox_inches='tight')
+    print(f'Saved {FIGURES_DIR}/fig3_scenario_comparison.png')

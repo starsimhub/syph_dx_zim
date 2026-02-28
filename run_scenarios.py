@@ -139,7 +139,7 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
 
 
 def save_treatment_outcomes(sims, scenario):
-    """Extract treatment_outcomes analyzer results and save as dataframe"""
+    """Extract treatment_outcomes analyzer results + congenital outcomes and save as dataframe"""
 
     all_rows = []
     for sim in sims:
@@ -158,6 +158,20 @@ def save_treatment_outcomes(sims, scenario):
                     value=val,
                 ))
 
+        # Also save congenital syphilis outcomes from the disease results
+        syph_res = sim.results.syph
+        for key in ['new_congenital', 'new_congenital_deaths']:
+            if key in syph_res:
+                vals = np.array(syph_res[key][:], dtype=float)
+                for year, val in zip(yearvec, vals):
+                    all_rows.append(dict(
+                        scenario=scenario,
+                        par_idx=par_idx,
+                        year=year,
+                        metric=key,
+                        value=val,
+                    ))
+
     df = pd.DataFrame(all_rows)
     fname = f'{RESULTS_DIR}/treatment_outcomes_{scenario}.df'
     sc.saveobj(fname, df)
@@ -168,14 +182,14 @@ def save_treatment_outcomes(sims, scenario):
 
 if __name__ == '__main__':
 
-    scenarios = ['soc', 'gud', 'conf', 'both']
-    n_pars = 20  # Top 20 parameter sets by effective force
-    seeds_per_par = 5  # Try 5 seeds each
+    scenarios = ['soc', 'gud', 'conf', 'both', 'cs']
+    n_pars = 10  # Top 10 parameter sets by effective force
+    seeds_per_par = 1  # Single seed (no variation)
 
     for scenario in scenarios:
         sims = run_scenario(
             scenario=scenario,
             n_pars=n_pars,
             seeds_per_par=seeds_per_par,
-            stop=2040,
+            stop=2041,
         )

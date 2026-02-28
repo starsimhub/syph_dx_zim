@@ -231,12 +231,14 @@ class epi_ts(ss.Analyzer):
 
 
 class transmission_by_stage(ss.Analyzer):
-    """ Track which disease stage (primary/secondary/early/late/tertiary) each transmission comes from """
+    """ Track which disease stage (primary/secondary/early/late/tertiary) each transmission comes from,
+        and for MTC transmissions, also track birth outcomes (death/congenital/normal) by stage """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = 'transmission_by_stage'
         self.stages = ['primary', 'secondary', 'early', 'late', 'tertiary']
         self.transmission_modes = ['sex', 'mtc']
+        self.birth_outcomes = ['death', 'congenital', 'normal']  # death = stillborn + NND
 
     def init_results(self):
         super().init_results()
@@ -244,6 +246,10 @@ class transmission_by_stage(ss.Analyzer):
         for tm in self.transmission_modes:
             for stage in self.stages:
                 results += ss.Result(f'new_{tm}_{stage}', dtype=int, scale=True)
+        # MTC birth outcomes by mother's stage
+        for stage in self.stages:
+            for outcome in self.birth_outcomes:
+                results += ss.Result(f'new_mtc_{stage}_{outcome}', dtype=int, scale=True)
         self.define_results(*results)
 
     def step(self):
@@ -257,6 +263,24 @@ class transmission_by_stage(ss.Analyzer):
         for tm in self.transmission_modes:
             for stage in self.stages:
                 self.results[f'new_{tm}_{stage}'][ti] += count(new_trans[tm] & getattr(syph, stage))
+
+        # MTC birth outcomes by mother's stage
+        # ti_transmitted_mtc is on the MOTHER; cs_outcome is on the BABY
+        # cs_outcome: 0=miscarriage, 1=nnd, 2=stillborn, 3=congenital, 4=normal
+        new_mtc = new_trans['mtc']
+        if new_mtc.any():
+            mnet = sim.networks.maternalnet
+            cs = syph.cs_outcome
+            for stage in self.stages:
+                in_stage = new_mtc & getattr(syph, stage)
+                if in_stage.any():
+                    mother_uids = in_stage.uids
+                    baby_uids = ss.uids(mnet.find_contacts(mother_uids))
+                    if len(baby_uids):
+                        outcomes = cs[baby_uids]
+                        self.results[f'new_mtc_{stage}_death'][ti] = int(np.sum((outcomes == 0) | (outcomes == 1) | (outcomes == 2)))
+                        self.results[f'new_mtc_{stage}_congenital'][ti] = int(np.sum(outcomes == 3))
+                        self.results[f'new_mtc_{stage}_normal'][ti] = int(np.sum(outcomes == 4))
 
 
 class treatment_outcomes(ss.Analyzer):

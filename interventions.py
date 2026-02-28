@@ -238,7 +238,7 @@ def make_scen_specs(scenario):
         ScenSpec(name='gud',    symp_algo='gud',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='conf',   symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='both',   symp_algo='gud',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='cs',     symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='dx_cs'),
+        ScenSpec(name='cs',     symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='exam'),
         ScenSpec(name='no',     symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
     ]
 
@@ -395,12 +395,18 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
     elif use_confirmation:
         def to_confirm(sim):
             p_anc = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
-            p_kp = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
-            p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
-            # Store origins for pathway attribution in to_treat()
-            sim._conf_origin_kp = p_kp.uids
-            sim._conf_origin_plhiv = p_plhiv.uids
-            return (p_anc | p_kp | p_plhiv).uids
+            # Pre-intervention: only ANC goes through conf_algo (same as SOC)
+            # Post-intervention: KP and PLHIV also routed through confirmation
+            if sim.t.now('year') >= intv_year:
+                p_kp = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
+                p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
+                sim._conf_origin_kp = p_kp.uids
+                sim._conf_origin_plhiv = p_plhiv.uids
+                return (p_anc | p_kp | p_plhiv).uids
+            else:
+                sim._conf_origin_kp = ss.uids()
+                sim._conf_origin_plhiv = ss.uids()
+                return p_anc.uids
     else:
         def to_confirm(sim):
             p1 = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
@@ -457,12 +463,14 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         p5 = sim.diseases.syph.tertiary
         p6 = sim.interventions['secondary_algo'].outcomes['positive'] == sim.interventions['secondary_algo'].ti
 
-        if use_confirmation:
-            # In conf/both: KP and PLHIV go through conf_algo, NOT directly to treatment
+        p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
+        p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
+
+        if use_confirmation and sim.t.now('year') >= intv_year:
+            # Post-intervention: KP and PLHIV go through conf_algo, NOT directly to treatment
             to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
         else:
-            p7 = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
-            p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
+            # Pre-intervention or non-confirmation scenarios: direct to treatment
             to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
 
         # Store pathway flags for the treatment_outcomes analyzer
@@ -472,8 +480,8 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         p8_poc = sim.interventions['newborn_poc'].outcomes.get('positive', ss.uids()) == sim.interventions['newborn_poc'].ti
         p8 = p8_direct | p8_exam | p8_poc
 
-        if use_confirmation:
-            # Attribute conf_algo/confirm outcomes back to originating pathway
+        if use_confirmation and sim.t.now('year') >= intv_year:
+            # Post-intervention: attribute conf_algo/confirm outcomes back to originating pathway
             conf_treated_uids = np.asarray((p1 | p4).uids)
             kp_origin = np.asarray(getattr(sim, '_conf_origin_kp', ss.uids()))
             plhiv_origin = np.asarray(getattr(sim, '_conf_origin_plhiv', ss.uids()))
