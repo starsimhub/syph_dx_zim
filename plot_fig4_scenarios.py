@@ -279,35 +279,21 @@ if __name__ == '__main__':
         print('No scenario results found. Run run_scenarios.py first.')
         exit()
 
-    cs = sc.loadobj(f'{RESULTS_DIR}/zimbabwe_calib_stats_all.df')
-
     print_summary_table(dfs)
 
     set_font(size=20)
-    from matplotlib.gridspec import GridSpecFromSubplotSpec
+    fig = pl.figure(figsize=(22, 8))
+    gs = GridSpec(1, 3, left=0.05, right=0.98, bottom=0.10, top=0.88,
+                  wspace=0.25)
 
-    fig = pl.figure(figsize=(22, 16))
-    gs = GridSpec(2, 1, left=0.05, right=0.98, bottom=0.05, top=0.95,
-                  hspace=0.30, height_ratios=[1, 1.2])
-
-    # --- Row 1: Scenario time series + bars (3 panels) ---
-    gs_row1 = GridSpecFromSubplotSpec(1, 3, subplot_spec=gs[0], wspace=0.25)
-
-    ax = fig.add_subplot(gs_row1[0, 0])
+    ax = fig.add_subplot(gs[0, 0])
     plot_treatments_ts(dfs, ax)
 
-    ax = fig.add_subplot(gs_row1[0, 1])
+    ax = fig.add_subplot(gs[0, 1])
     plot_overtreatment_ts(dfs, ax)
 
-    ax = fig.add_subplot(gs_row1[0, 2])
+    ax = fig.add_subplot(gs[0, 2])
     plot_overtreatment_bars(dfs, ax)
-
-    # --- Row 2: Congenital cascade comparison (SOC vs CS) ---
-    gs_row2 = GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[1], wspace=0.20)
-
-    ax_soc = fig.add_subplot(gs_row2[0, 0])
-    ax_cs = fig.add_subplot(gs_row2[0, 1])
-    plot_congenital_cascade_comparison(dfs, cs, ax_soc, ax_cs)
 
     pl.savefig(f'{FIGURES_DIR}/fig4_scenario_comparison.png', dpi=200, bbox_inches='tight')
     print(f'Saved {FIGURES_DIR}/fig4_scenario_comparison.png')
