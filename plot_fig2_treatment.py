@@ -421,7 +421,7 @@ def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_
     # Section divider
     sep_y = (y[len(steps)-1] + y[len(steps)]) / 2
     ax.axhline(y=sep_y, color='grey', linewidth=0.8, linestyle='--', alpha=0.4)
-    ax.text(50, sep_y + 0.15, 'Remaining: newborn pathway', ha='center', va='bottom',
+    ax.text(50, sep_y - 0.15, 'Remaining: newborn pathway', ha='center', va='top',
             fontsize=13, color='grey', style='italic')
 
     all_y_labels = list(labels) + [''] + list(nb_labels)
