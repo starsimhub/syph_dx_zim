@@ -128,7 +128,6 @@ def make_calibration():
 if __name__ == '__main__':
 
     do_run = True
-    make_stats = True
 
     if do_run:
         sim, calib = make_calibration()
@@ -136,29 +135,10 @@ if __name__ == '__main__':
         calib.calibrate()
         print(f'Best pars are {calib.best_pars}')
         calib.remove_db()
-
-        print('Shrinking and saving...')
-        if do_shrink:
-            sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_all_BIG.obj', calib)
-            calib = calib.shrink(n_results=int(TOTAL_TRIALS//10))
-            sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_all.obj', calib)
-        else:
-            sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_all.obj', calib)
-
-        sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_pars_all.df', calib.df)
-
+        calib.save(f'{RESULTS_DIR}/{LOCATION}_calib_all.obj', shrink=do_shrink,
+                   pars_filename=f'{RESULTS_DIR}/{LOCATION}_pars_all.df')
     else:
         calib = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_calib_all.obj')
-
-    if make_stats:
-        print('Making quick calibration stats (core epi only)...')
-        print('For comprehensive stats with all results, run: python run_msim.py')
-        from utils import percentiles
-        df = calib.resdf
-        df_stats = df.groupby(df.time).describe(percentiles=percentiles)
-        sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_stats_all.df', df_stats)
-        par_stats = calib.df.describe(percentiles=[0.05, 0.95])
-        sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_par_stats_all.df', par_stats)
 
     print('Done!')
 
