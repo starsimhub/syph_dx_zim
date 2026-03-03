@@ -21,90 +21,6 @@ RESULTS_DIR = 'results'
 FIGURES_DIR = 'figures'
 
 
-def _extract_value(pars):
-    """ Extract value from a calibration parameter dict or scalar """
-    if isinstance(pars, dict):
-        return pars['value']
-    elif sc.isnumber(pars):
-        return pars
-    return None
-
-
-def _get_disease(sim, name):
-    """ Get a disease module by name, works both before and after sim.init() """
-    if sim.initialized:
-        return sim.diseases[name]
-    for d in sim.pars.diseases:
-        if d.name == name:
-            return d
-    return None
-
-
-def _get_network(sim, name):
-    """ Get a network by name, works both before and after sim.init() """
-    if sim.initialized:
-        return sim.networks[name]
-    for n in sim.pars.networks:
-        if n.name == name:
-            return n
-    return None
-
-
-def _get_connector(sim, name):
-    """ Get a connector by name, works both before and after sim.init() """
-    connectors = sim.connectors if sim.initialized else sim.pars.connectors
-    if connectors is not None:
-        for c in connectors:
-            if type(c).__name__ == name:
-                return c
-    return None
-
-
-def make_sim_pars(sim, calib_pars):
-    # Set disease/network/connector pars BEFORE init (needed for rel_init_prev, etc.)
-    for k, pars in calib_pars.items():
-        if k in ['rand_seed', 'index', 'mismatch']:
-            continue
-        v = _extract_value(pars)
-        if v is None:
-            continue
-        if 'syph_' in k:
-            _get_disease(sim, 'syph').pars[k.replace('syph_', '')] = v
-        elif 'hiv_' in k:
-            _get_disease(sim, 'hiv').pars[k.replace('hiv_', '')] = v
-        elif 'nw_' in k:
-            nw = _get_network(sim, 'structuredsexual')
-            par_name = k.replace('nw_', '')
-            if hasattr(nw.pars[par_name], 'set'):
-                nw.pars[par_name].set(v)
-            else:
-                nw.pars[par_name] = v
-        elif 'conn_' in k:
-            conn = _get_connector(sim, 'hiv_syph')
-            par_name = k.replace('conn_', '')
-            conn.pars[par_name] = v
-
-    # Now initialize (uses updated rel_init_prev, etc.)
-    if not sim.initialized:
-        sim.init()
-
-    # Set intervention pars (only accessible after init)
-    for k, pars in calib_pars.items():
-        if k in ['rand_seed', 'index', 'mismatch']:
-            continue
-        v = _extract_value(pars)
-        if v is None:
-            continue
-        if k == 'rel_symp_test':
-            sim.interventions.symp_algo.pars['rel_test'] = v
-        elif k == 'rel_anc_test':
-            sim.interventions.anc_screen.pars['rel_test'] = v
-        elif k == 'rel_kp_test':
-            sim.interventions.dual_hiv.pars['rel_test'] = v
-
-    return sim
-
-
 def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyzers=None, pre_load_calibs=None, par_idx=0):
 
     # Network
@@ -160,16 +76,10 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
             best_pars = pars_df.iloc[par_idx].to_dict()
             print(best_pars)
             calib_pars.update(best_pars)
-        sim = make_sim_pars(sim, calib_pars)  # Sets pre-init pars, then inits, then sets post-init pars
+        sti.set_sim_pars(sim, calib_pars)
+        if not sim.initialized:
+            sim.init()
         print(f'Using calibration parameters for scenario {scenario} and index {par_idx}')
-
-        # Display pars from sim
-        for disease in pre_load_calibs:
-            if disease in sim.diseases:
-                print(f'\n{disease.upper()} parameters:')
-                for k, v in sim.diseases[disease].pars.items():
-                    if k in best_pars:
-                        print(f'  {k}: {v} (calibrated)')
     return sim
 
 

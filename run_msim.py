@@ -23,17 +23,21 @@ os.environ.update(
     MKL_NUM_THREADS='1',
 )
 
-import argparse
 import numpy as np
 import sciris as sc
-import starsim as ss
+import stisim as sti
 import pandas as pd
-from run_sims import make_sim, _extract_value
-from run_scenarios import set_preinit_pars, check_syph_alive
+from run_sims import make_sim
 from utils import percentiles
 
 LOCATION = 'zimbabwe'
 RESULTS_DIR = 'results'
+
+
+def check_syph_alive(sim):
+    """Check that syphilis didn't die out (same as calibration check_fn)."""
+    syph_ni = sim.results.syph.new_infections[-60:]  # Last 5 years
+    return float(np.sum(syph_ni)) > 0
 
 
 def run_msim(n_pars=200, start=1985, stop=2026, scenario='soc'):
@@ -41,52 +45,13 @@ def run_msim(n_pars=200, start=1985, stop=2026, scenario='soc'):
     Run top n_pars calibrated parameter sets.
     No seed variation — each par set is a genuinely distinct fit.
     """
-
-    # Load calibrated parameters, sorted by mismatch (best first)
     pars_df = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_pars_all.df')
-    n_pars = min(n_pars, len(pars_df))
-    print(f'Running top {n_pars} parameter sets (scenario={scenario}, {start}-{stop})')
-
-    # Create uninitialized sims
-    sims = sc.autolist()
-    for par_idx in range(n_pars):
-        calib_pars = pars_df.iloc[par_idx].to_dict()
-
-        base = make_sim(
-            dislist='all',
-            scenario=scenario,
-            seed=par_idx + 1,
-            start=start,
-            stop=stop,
-            verbose=-1,
-        )
-        set_preinit_pars(base, calib_pars)
-
-        # Set intervention rel_test pars
-        for intv in base.pars.interventions:
-            name = getattr(intv, 'name', '')
-            if name == 'symp_algo':
-                intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_symp_test', 1.0)) or 1.0
-            elif name == 'anc_screen':
-                intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_anc_test', 1.0)) or 1.0
-            elif name == 'dual_hiv':
-                intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_kp_test', 1.0)) or 1.0
-
-        base.par_idx = par_idx
-        sims += base
-
-    print(f'Created {len(sims)} uninitialized sims, running in parallel...')
-    sims = ss.parallel(sims).sims
-    print(f'Completed {len(sims)} simulations')
-
-    # Filter: keep only sims where syphilis survived
-    kept = [s for s in sims if check_syph_alive(s)]
-    n_died = len(sims) - len(kept)
-    if n_died:
-        print(f'  Dropped {n_died}/{len(sims)} sims where syphilis died out')
-    print(f'Kept {len(kept)} sims')
-
-    return kept
+    base = make_sim(dislist='all', scenario=scenario, start=start, stop=stop, verbose=-1)
+    msim = sti.make_calib_sims(
+        calib_pars=pars_df, sim=base, n_parsets=n_pars, check_fn=check_syph_alive,
+    )
+    print(f'Kept {len(msim.sims)} sims')
+    return msim.sims
 
 
 def prune_columns(df):
@@ -191,12 +156,10 @@ def save_sw_prev(sims):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--n_pars', type=int, default=200)
-    parser.add_argument('--stop', type=int, default=2026)
-    args = parser.parse_args()
+    n_pars = 200
+    stop = 2026
 
-    sims = run_msim(n_pars=args.n_pars, stop=args.stop)
+    sims = run_msim(n_pars=n_pars, stop=stop)
 
     if len(sims) > 0:
         cs = save_results(sims)
