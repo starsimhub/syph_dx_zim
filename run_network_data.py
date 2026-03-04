@@ -8,7 +8,8 @@ import sciris as sc
 import numpy as np
 import starsim as ss
 import stisim as sti
-from run_sims import make_sim, make_sim_pars
+import stisim as sti
+from run_sims import make_sim
 from analyzers import NetworkSnapshot
 
 LOCATION = 'zimbabwe'
@@ -34,8 +35,8 @@ def run_network_sims(n_sims=3, par_idx=0):
             stop=2026,
             analyzers=network_analyzers,
         )
+        sti.set_sim_pars(sim, calib_pars)
         sim.init()
-        sim = make_sim_pars(sim, calib_pars)
         sim.par_idx = par_idx
         sims += sim
 

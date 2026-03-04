@@ -46,7 +46,7 @@ def run_msim(n_pars=200, start=1985, stop=2026, scenario='soc'):
     No seed variation — each par set is a genuinely distinct fit.
     """
     pars_df = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_pars_all.df')
-    base = make_sim(dislist='all', scenario=scenario, start=start, stop=stop, verbose=-1)
+    base = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1)
     msim = sti.make_calib_sims(
         calib_pars=pars_df, sim=base, n_parsets=n_pars, check_fn=check_syph_alive,
     )

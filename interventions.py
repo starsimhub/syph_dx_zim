@@ -552,29 +552,12 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
     return interventions
 
 
-def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, syph_years=None, syph_prob=None, plhiv_years=None, plhiv_prob=None):
+def make_interventions(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, syph_years=None, syph_prob=None, plhiv_years=None, plhiv_prob=None):
     """
     Make interventions for syphilis / HIV coinfection model
     """
-    interventions = sc.autolist()
-
-    # HIV interventions
-    if which == 'all':
-        hiv_intvs = make_hiv_intvs(add_dual=True, syph_years=syph_years, syph_prob=syph_prob)
-        syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test, plhiv_years=plhiv_years, plhiv_prob=plhiv_prob)
-        interventions += hiv_intvs + syph_intvs
-
-    elif which == 'hiv':
-        hiv_intvs = make_hiv_intvs(add_dual=False)
-        interventions += hiv_intvs
-
-    # Syphilis testing interventions
-    elif which == 'stis':
-        syph_intvs = make_syph_testing(scenario=scenario)
-        interventions += syph_intvs
-
-    else:
-        raise NotImplementedError(f'Intervention set "{which}" not recognized')
-
+    hiv_intvs = make_hiv_intvs(add_dual=True, syph_years=syph_years, syph_prob=syph_prob)
+    syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test, plhiv_years=plhiv_years, plhiv_prob=plhiv_prob)
+    interventions = sc.autolist(hiv_intvs + syph_intvs)
     return interventions
 

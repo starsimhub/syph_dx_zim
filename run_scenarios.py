@@ -34,7 +34,7 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
     where syphilis survives (matching calibration check_fn behavior).
     """
     pars_df = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_pars_all.df')
-    base = make_sim(dislist='all', scenario=scenario, start=start, stop=stop, verbose=-1)
+    base = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1)
     msim = sti.make_calib_sims(
         calib_pars=pars_df, sim=base, n_parsets=n_pars,
         seeds_per_par=seeds_per_par, check_fn=check_syph_alive,

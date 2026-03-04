@@ -545,17 +545,16 @@ class birth_outcome_duration(ss.Analyzer):
                 ))
 
 
-def make_analyzers(which='all', extra_analyzers=None):
+def make_analyzers(extra_analyzers=None):
     analyzers = sc.autolist()
-    if which in ['all', 'stis']:
-        analyzers += [
-            sti.coinfection_stats('syph', 'hiv', name='coinfection_stats'),
-            sti.coinfection_stats('syph', 'hiv', disease1_infected_state_name='active', name='active_coinfection_stats'),
-            epi_ts(),
-            sti.sw_stats(diseases=['syph', 'hiv']),
-            syph_idalys(),
-            transmission_by_stage(),
-            treatment_outcomes(),
-        ]
+    analyzers += [
+        sti.coinfection_stats('syph', 'hiv', name='coinfection_stats'),
+        sti.coinfection_stats('syph', 'hiv', disease1_infected_state_name='active', name='active_coinfection_stats'),
+        epi_ts(),
+        sti.sw_stats(diseases=['syph', 'hiv']),
+        syph_idalys(),
+        transmission_by_stage(),
+        treatment_outcomes(),
+    ]
     analyzers += sc.autolist(extra_analyzers)
     return analyzers
