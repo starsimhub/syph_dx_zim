@@ -18,6 +18,35 @@ from analyzers import make_analyzers
 LOCATION = 'zimbabwe'
 DATA_DIR = 'data'
 RESULTS_DIR = 'results'
+
+# Rename map: old underscore-format calibration columns → new dot notation
+LEGACY_PAR_RENAME = {
+    'rel_symp_test': 'symp_algo.rel_test',
+    'rel_anc_test':  'anc_screen.rel_test',
+    'rel_kp_test':   'dual_hiv.rel_test',
+}
+
+
+def load_calib_pars(path=None, sort_by_force=True):
+    """
+    Load calibrated parameters, renaming legacy column names to dot notation.
+
+    If sort_by_force=True, sorts by effective syphilis transmission force
+    (strongest first) so the top-N parameter sets are most likely to sustain
+    syphilis dynamics.
+    """
+    if path is None:
+        path = f'{RESULTS_DIR}/{LOCATION}_pars_all.df'
+    df = sc.loadobj(path)
+    df = df.rename(columns=LEGACY_PAR_RENAME)
+    if sort_by_force:
+        beta_col = next((c for c in df.columns if c in ['syph.beta_m2f', 'syph_beta_m2f']), None)
+        rtp_col = next((c for c in df.columns if c in ['syph.rel_trans_primary', 'syph_rel_trans_primary']), None)
+        eff_col = next((c for c in df.columns if c in ['syph.eff_condom', 'syph_eff_condom']), None)
+        if all(c is not None for c in [beta_col, rtp_col, eff_col]):
+            df['eff_force'] = df[beta_col] * df[rtp_col] * (1 - df[eff_col])
+            df = df.sort_values('eff_force', ascending=False).reset_index(drop=True)
+    return df
 FIGURES_DIR = 'figures'
 
 
