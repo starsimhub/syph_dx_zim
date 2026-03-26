@@ -1,0 +1,3 @@
+name,state,p_positive
+poc,susceptible,0.05
+poc,infected,0.9

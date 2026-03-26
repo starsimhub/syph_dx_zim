@@ -18,13 +18,13 @@ os.environ.update(
     MKL_NUM_THREADS='1',
 )
 
-import numpy as np
 import sciris as sc
 import stisim as sti
 import pandas as pd
 import pylab as pl
 from run_sims import make_sim, load_calib_pars
 from run_msim import check_syph_alive
+from utils import set_font
 from run_scenarios import save_treatment_outcomes
 
 LOCATION = 'zimbabwe'
@@ -35,13 +35,13 @@ def run_decomposition(n_pars=10, seeds_per_par=3, stop=2041):
     """Run SOC + each strategy in isolation."""
     pars_df = load_calib_pars()
 
-    scenarios = ['soc', 'gud', 'conf_anc', 'conf_kp', 'cs']
+    scenarios = ['soc', 'gud', 'conf_anc', 'conf_fsw', 'conf_plhiv']
     labels = {
         'soc': 'Standard of care',
         'gud': 'GUD POC diagnostic',
         'conf_anc': 'Confirmatory (ANC)',
-        'conf_kp': 'Confirmatory (KP/PLHIV)',
-        'cs': 'Newborn CS testing',
+        'conf_fsw': 'High-risk HIV- dual testing',
+        'conf_plhiv': 'Confirmatory (PLHIV)',
     }
 
     all_results = {}
@@ -59,22 +59,28 @@ def run_decomposition(n_pars=10, seeds_per_par=3, stop=2041):
     return all_results, labels
 
 
-def load_and_plot(scenarios=None, labels=None):
-    """Load treatment outcomes and plot strategy comparison."""
-    if scenarios is None:
-        scenarios = ['soc', 'gud', 'conf_anc', 'conf_kp', 'cs']
-    if labels is None:
-        labels = {
-            'soc': 'Standard of care',
-            'gud': 'GUD POC diagnostic',
-            'conf_anc': 'Confirmatory (ANC)',
-            'conf_kp': 'Confirmatory (KP/PLHIV)',
-            'cs': 'Newborn CS testing',
-        }
+ADULT_PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen']
+
+
+def get_ot_rate_total(df, start_year, end_year):
+    """Compute overall adult OT rate as a single percentage."""
+    post = df[(df.year >= start_year) & (df.year <= end_year)]
+    treated = sum(post[post.metric == f'{pw}_treated'].value.sum() for pw in ADULT_PATHWAYS)
+    unnecessary = sum(post[post.metric == f'{pw}_unnecessary'].value.sum() for pw in ADULT_PATHWAYS)
+    return unnecessary / max(treated, 1) * 100
+
+
+def load_and_plot(start_year=2028, end_year=2039):
+    """
+    Two-panel figure:
+      (A) Overall strategy comparison: SOC vs GUD vs confirmatory (all channels)
+      (B) Confirmatory test decomposition by delivery channel
+    """
+    all_scenarios = ['soc', 'gud', 'conf', 'conf_anc', 'conf_fsw', 'conf_plhiv']
 
     # Load treatment outcomes
     dfs = {}
-    for scenario in scenarios:
+    for scenario in all_scenarios:
         fname = f'{RESULTS_DIR}/treatment_outcomes_{scenario}.df'
         df = sc.loadobj(fname)
         if len(df) == 0:
@@ -82,58 +88,82 @@ def load_and_plot(scenarios=None, labels=None):
             return None
         dfs[scenario] = df
 
-    # Compute overtreatment rate post-intervention (2028-2040)
-    post_year = 2028
-    ot_rates = {}
-    for scenario in scenarios:
-        df = dfs[scenario]
-        post = df[df.year >= post_year]
+    # Compute OT rates
+    rates = {s: get_ot_rate_total(dfs[s], start_year, end_year) for s in all_scenarios}
+    soc_rate = rates['soc']
 
-        # Sum treated and unnecessary across all pathways
-        treated = post[post.metric.str.endswith('_treated')].groupby('par_idx').value.sum()
-        unnecessary = post[post.metric.str.endswith('_unnecessary')].groupby('par_idx').value.sum()
-        ot_rate = unnecessary / treated.clip(lower=1)
-        ot_rates[scenario] = ot_rate
+    # --- Plot ---
+    set_font(size=18)
+    fig, (ax1, ax2) = pl.subplots(1, 2, figsize=(18, 5), gridspec_kw={'width_ratios': [1, 1.2]})
 
-    # Compute reduction in OT rate relative to SOC
-    soc_median = ot_rates['soc'].median()
-    strategy_scenarios = [s for s in scenarios if s != 'soc']
-
-    strategy_labels = []
-    reductions_median = []
-    reductions_lo = []
-    reductions_hi = []
-    for scenario in strategy_scenarios:
-        reduction = ot_rates['soc'] - ot_rates[scenario]  # Per par_idx
-        reductions_median.append(reduction.median())
-        reductions_lo.append(reduction.quantile(0.25))
-        reductions_hi.append(reduction.quantile(0.75))
-        strategy_labels.append(labels[scenario])
-
-    # Sort by median reduction
-    order = np.argsort(reductions_median)[::-1]
-    strategy_labels = [strategy_labels[i] for i in order]
-    reductions_median = [reductions_median[i] for i in order]
-    reductions_lo = [reductions_lo[i] for i in order]
-    reductions_hi = [reductions_hi[i] for i in order]
-
-    # Plot
-    fig, ax = pl.subplots(figsize=(8, 5))
-    y = np.arange(len(strategy_labels))
-    xerr = [
-        [m - lo for m, lo in zip(reductions_median, reductions_lo)],
-        [hi - m for m, hi in zip(reductions_median, reductions_hi)],
+    # Panel A: Strategy comparison (SOC, GUD, Confirmatory all channels)
+    panel_a = [
+        ('soc',  'Standard of care',       '#555555'),
+        ('gud',  'GUD syphilis detection',  '#e41a1c'),
+        ('conf', 'Active syphilis confirmation\nfollowing treponemal screen+', '#377eb8'),
     ]
-    ax.barh(y, reductions_median, xerr=xerr, color='steelblue', capsize=4, height=0.6)
-    ax.set_yticks(y)
-    ax.set_yticklabels(strategy_labels)
-    ax.set_xlabel('Reduction in overtreatment rate vs SOC')
-    ax.set_title(f'Impact of each strategy in isolation\n(SOC overtreatment rate: {soc_median:.0%})')
-    ax.axvline(0, color='k', linewidth=0.5)
-    ax.invert_yaxis()
+    for i, (scen, label, color) in enumerate(panel_a):
+        ax1.barh(i, rates[scen], color=color, alpha=0.85, edgecolor='white',
+                 linewidth=0.5, height=0.6)
+        ax1.text(rates[scen] + 0.5, i, f'{rates[scen]:.0f}%',
+                 ha='left', va='center', fontsize=16, fontweight='bold')
+
+    ax1.set_yticks(range(len(panel_a)))
+    ax1.set_yticklabels([p[1] for p in panel_a])
+    ax1.set_xlabel(f'Adult overtreatment rate (%), {start_year}\u2013{end_year}')
+    ax1.set_title('(A) Strategy comparison')
+    ax1.set_xlim(0, soc_rate * 1.15)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.invert_yaxis()
+
+    # Panel B: Confirmatory test decomposed by delivery channel
+    # Show reduction in OT rate vs SOC for each channel in isolation
+    combined_reduction = soc_rate - rates['conf']
+    channels = [
+        ('conf_anc',    'ANC',              '#377eb8'),
+        ('conf_fsw',    'HIV- FSW (dual)',  '#ff7f00'),
+        ('conf_plhiv',  'PLHIV',            '#4daf4a'),
+    ]
+    # Sort by reduction (biggest impact first)
+    channels.sort(key=lambda x: rates[x[0]])
+
+    # First bar: combined (all channels)
+    ax2.barh(0, combined_reduction, color='#377eb8', alpha=0.4, edgecolor='#377eb8',
+             linewidth=1.5, height=0.6, linestyle='--')
+    ax2.text(combined_reduction + 0.3, 0, f'{combined_reduction:.0f} pp',
+             ha='left', va='center', fontsize=16, fontweight='bold', color='#555555')
+
+    # Individual channel bars
+    for i, (scen, label, color) in enumerate(channels):
+        reduction = soc_rate - rates[scen]
+        ax2.barh(i + 1, reduction, color=color, alpha=0.85, edgecolor='white',
+                 linewidth=0.5, height=0.6)
+        ax2.text(reduction + 0.3, i + 1, f'{reduction:.0f} pp',
+                 ha='left', va='center', fontsize=16, fontweight='bold')
+
+    all_labels = ['All channels combined'] + [c[1] for c in channels]
+    ax2.set_yticks(range(len(all_labels)))
+    ax2.set_yticklabels(all_labels)
+    ax2.set_xlabel(f'Reduction in overtreatment rate (percentage points)')
+    ax2.set_title('(B) Active syphilis confirmation: impact by delivery channel')
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.invert_yaxis()
+    ax2.set_xlim(0, combined_reduction * 1.2)
+
     pl.tight_layout()
-    fig.savefig(f'figures/strategy_decomposition.png', dpi=150)
+    fig.savefig(f'figures/strategy_decomposition.png', dpi=200, bbox_inches='tight')
     print(f'Saved figures/strategy_decomposition.png')
+
+    # Print summary
+    print(f'\nOvertreatment rates ({start_year}\u2013{end_year}):')
+    print(f'  SOC:                   {soc_rate:.1f}%')
+    print(f'  GUD detection:         {rates["gud"]:.1f}%')
+    print(f'  Confirmatory (all):    {rates["conf"]:.1f}%')
+    print(f'\nConfirmatory test by channel (reduction vs SOC):')
+    for scen, label, _ in channels:
+        print(f'  {label:20s}  {soc_rate - rates[scen]:+.1f} pp  →  {rates[scen]:.1f}%')
 
     return fig
 
@@ -143,8 +173,8 @@ if __name__ == '__main__':
     n_pars = 10
     seeds_per_par = 3
 
-    # Only run the new decomposed scenarios — reuse existing soc, gud, cs results
-    to_run = ['conf_anc', 'conf_kp']
+    # Only run the new decomposed scenarios — reuse existing soc, gud results
+    to_run = False  # ['conf_anc', 'conf_fsw', 'conf_plhiv']
 
     if to_run:
         pars_df = load_calib_pars()
@@ -160,6 +190,6 @@ if __name__ == '__main__':
                 save_treatment_outcomes(msim.sims, scenario)
 
     fig = load_and_plot()
-    if fig is not None:
-        pl.show()
+    # if fig is not None:
+    #     pl.show()
     print('Done!')

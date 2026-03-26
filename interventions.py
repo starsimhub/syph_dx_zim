@@ -238,7 +238,9 @@ def make_scen_specs(scenario):
         ScenSpec(name='gud',      symp_algo='gud',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='conf',     symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='conf_anc', symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='conf_kp',  symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf_kp',    symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf_fsw',   symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf_plhiv', symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='both',     symp_algo='gud',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
         ScenSpec(name='cs',       symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='exam'),
         ScenSpec(name='no',       symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
@@ -387,7 +389,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
 
     # Positive results on dual test may be given a confirmatory test
     # In conf/both scenarios, ALL screening positives (ANC + KP + PLHIV) go through confirmation
-    use_confirmation = scenario in ['conf', 'both', 'conf_anc', 'conf_kp']
+    use_confirmation = scenario in ['conf', 'both', 'conf_anc', 'conf_kp', 'conf_fsw', 'conf_plhiv']
 
     if orig_scenario == 'soc+scaleup':
         def to_confirm(sim):
@@ -408,14 +410,19 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
                     sim._conf_origin_kp = ss.uids()
                     sim._conf_origin_plhiv = ss.uids()
                     return p_anc.uids
-                elif scenario == 'conf_kp':
+                elif scenario in ['conf_kp', 'conf_fsw', 'conf_plhiv']:
                     # ANC goes through conf_algo with SOC product (70% treat / 30% nothing).
-                    # KP/PLHIV bypass conf_algo — scheduled directly for confirm test below.
-                    kp_plhiv = (p_kp | p_plhiv).uids
-                    if len(kp_plhiv):
-                        sim.interventions['confirm'].ti_scheduled[kp_plhiv] = sim.ti
-                    sim._conf_origin_kp = p_kp.uids
-                    sim._conf_origin_plhiv = p_plhiv.uids
+                    # Selected group(s) bypass conf_algo — scheduled directly for confirm test.
+                    if scenario == 'conf_kp':
+                        to_confirm_direct = (p_kp | p_plhiv).uids
+                    elif scenario == 'conf_fsw':
+                        to_confirm_direct = p_kp.uids
+                    else:  # conf_plhiv
+                        to_confirm_direct = p_plhiv.uids
+                    if len(to_confirm_direct):
+                        sim.interventions['confirm'].ti_scheduled[to_confirm_direct] = sim.ti
+                    sim._conf_origin_kp = p_kp.uids if scenario in ['conf_kp', 'conf_fsw'] else ss.uids()
+                    sim._conf_origin_plhiv = p_plhiv.uids if scenario in ['conf_kp', 'conf_plhiv'] else ss.uids()
                     return p_anc.uids  # Only ANC goes through conf_algo
                 else:
                     # Full confirmation: ANC + KP + PLHIV
@@ -489,8 +496,14 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
             if scenario == 'conf_anc':
                 # ANC through confirmation, KP/PLHIV direct to treatment
                 to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
+            elif scenario == 'conf_fsw':
+                # FSW through confirm (p4); ANC through conf_algo SOC (p1); PLHIV direct
+                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p_plhiv).uids
+            elif scenario == 'conf_plhiv':
+                # PLHIV through confirm (p4); ANC through conf_algo SOC (p1); FSW direct
+                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7).uids
             elif scenario == 'conf_kp':
-                # ANC through conf_algo SOC (appears in p1); KP/PLHIV through confirm (appears in p4)
+                # ANC through conf_algo SOC (p1); KP+PLHIV through confirm (p4)
                 to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
             else:
                 # Full confirmation: KP and PLHIV go through conf_algo, NOT directly to treatment
@@ -525,8 +538,28 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
                     plhiv_screen=p_plhiv.uids,
                     newborn=p8.uids,
                 )
+            elif scenario == 'conf_fsw':
+                # FSW through confirm; ANC through conf_algo SOC; PLHIV direct
+                sim._tx_pathways = sc.objdict(
+                    gud_syndromic=(p2 | p3).uids,
+                    anc_screen=anc_from_conf,
+                    secondary_rash=p6.uids,
+                    kp_screen=kp_from_conf,
+                    plhiv_screen=p_plhiv.uids,
+                    newborn=p8.uids,
+                )
+            elif scenario == 'conf_plhiv':
+                # PLHIV through confirm; ANC through conf_algo SOC; FSW direct
+                sim._tx_pathways = sc.objdict(
+                    gud_syndromic=(p2 | p3).uids,
+                    anc_screen=anc_from_conf,
+                    secondary_rash=p6.uids,
+                    kp_screen=p7.uids,
+                    plhiv_screen=plhiv_from_conf,
+                    newborn=p8.uids,
+                )
             elif scenario == 'conf_kp':
-                # ANC through conf_algo SOC; KP/PLHIV through confirm test
+                # ANC through conf_algo SOC; KP+PLHIV through confirm test
                 sim._tx_pathways = sc.objdict(
                     gud_syndromic=(p2 | p3).uids,
                     anc_screen=anc_from_conf,
