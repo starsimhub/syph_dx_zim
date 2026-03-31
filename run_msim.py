@@ -40,18 +40,38 @@ def check_syph_alive(sim):
     return float(np.sum(syph_ni)) > 0
 
 
-def run_msim(n_pars=200, start=1985, stop=2026, scenario='soc'):
+def _run_one_sim(args):
+    """Run a single sim with the exact seed stored from calibration."""
+    pars_row, scenario, start, stop = args
+    seed = int(pars_row.get('rand_seed', 1))
+    sim = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1, seed=seed)
+    sti.set_sim_pars(sim, pars_row)
+    sim.init()
+    sim.run()
+    sim.par_idx = int(pars_row.get('index', 0))
+    return sim
+
+
+def run_msim(n_pars=None, start=1985, stop=2026, scenario='soc', n_workers=None):
     """
-    Run top n_pars calibrated parameter sets.
-    No seed variation — each par set is a genuinely distinct fit.
+    Run all calibrated parameter sets, replaying the exact seed used in
+    calibration. Requires reseed=True in run_calibrations.py so that
+    rand_seed is stored per parameter set in pars_df.
+
+    n_pars=None uses all available parameter sets.
     """
-    pars_df = load_calib_pars()
-    base = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1)
-    msim = sti.make_calib_sims(
-        calib_pars=pars_df, sim=base, n_parsets=n_pars, check_fn=check_syph_alive,
-    )
-    print(f'Kept {len(msim.sims)} sims')
-    return msim.sims
+    pars_df = load_calib_pars(n=n_pars)
+    if 'rand_seed' not in pars_df.columns:
+        print('WARNING: rand_seed not in pars_df — calibration was run with reseed=False. '
+              'Using seed=1 for all sims. Re-run calibration with reseed=True to fix this.')
+        pars_df['rand_seed'] = 1
+
+    print(f'Running {len(pars_df)} parameter sets with stored calibration seeds')
+    args = [(row.to_dict(), scenario, start, stop) for _, row in pars_df.iterrows()]
+    sims = sc.parallelize(_run_one_sim, args, parallelizer='multiprocess', ncpus=n_workers)
+    sims = [s for s in sims if check_syph_alive(s)]
+    print(f'Kept {len(sims)}/{len(pars_df)} sims (syphilis sustained)')
+    return sims
 
 
 def prune_columns(df):
