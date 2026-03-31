@@ -25,6 +25,8 @@ def make_diseases():
         rel_trans_secondary=1,                    # Moderate: ~25-30% of transmission
         rel_trans_latent=0.1,                     # Low baseline, decays exponentially
         rel_trans_latent_half_life=ss.months(6),  # Faster decay than default 1yr
+        dur_early=ss.uniform(ss.months(22), ss.months(26)),  # WHO definition: early latent = first 24 months (was 12-14)
+        p_symp_primary=[0.3, 0.8],               # Chancre visibility: 30% female, 80% male (was 50% male; reflects heterosexual external anatomy)
         anc_detection=1.,
         rel_init_prev=0.2,
         init_prev_data=pd.read_csv('data/init_prev_syph.csv'),
