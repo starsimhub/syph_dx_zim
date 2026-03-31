@@ -40,9 +40,8 @@ def check_syph_alive(sim):
     return float(np.sum(syph_ni)) > 0
 
 
-def _run_one_sim(args):
+def _run_one_sim(pars_row, scenario, start, stop):
     """Run a single sim with the exact seed stored from calibration."""
-    pars_row, scenario, start, stop = args
     seed = int(pars_row.get('rand_seed', 1))
     sim = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1, seed=seed)
     sti.set_sim_pars(sim, pars_row)
