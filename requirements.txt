@@ -1,0 +1,5 @@
+stisim>=1.5.2
+starsim>=3.3.0
+sciris>=3.2.9
+pandas
+optuna

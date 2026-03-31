@@ -80,7 +80,7 @@ def make_sim(scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyz
     analyzers = make_analyzers(extra_analyzers=analyzers)
 
     simpars = dict(
-        use_migration=False, rand_seed=seed, n_agents=10e3, start=start, stop=stop, verbose=verbose,
+        use_migration=False, rand_seed=seed, n_agents=10e3, age_scale=1000, start=start, stop=stop, verbose=verbose,
     )
 
     sim = sti.Sim(

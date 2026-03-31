@@ -68,9 +68,10 @@ def save_treatment_outcomes(sims, scenario):
                     value=val,
                 ))
 
-        # Also save congenital syphilis outcomes from the disease results
+        # Also save disease-level results needed for health impact analysis
         syph_res = sim.results.syph
-        for key in ['new_congenital', 'new_congenital_deaths']:
+        for key in ['new_congenital', 'new_congenital_deaths', 'new_infections', 'n_active',
+                    'new_treated', 'new_treated_success', 'new_treated_unnecessary', 'new_false_neg']:
             if key in syph_res:
                 vals = np.array(syph_res[key][:], dtype=float)
                 for year, val in zip(yearvec, vals):
@@ -78,7 +79,21 @@ def save_treatment_outcomes(sims, scenario):
                         scenario=scenario,
                         par_idx=par_idx,
                         year=year,
-                        metric=key,
+                        metric=f'syph_{key}',
+                        value=val,
+                    ))
+
+        # Save DALYs from syph_idalys analyzer
+        idalys = sim.results.get('syph_idalys')
+        if idalys is not None:
+            for key in idalys.keys():
+                vals = np.array(idalys[key][:], dtype=float)
+                for year, val in zip(yearvec, vals):
+                    all_rows.append(dict(
+                        scenario=scenario,
+                        par_idx=par_idx,
+                        year=year,
+                        metric=f'syph_idalys_{key}',
                         value=val,
                     ))
 
