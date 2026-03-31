@@ -1,0 +1,25 @@
+year,risk_group,sex,transactional sex?,symp_test_prob
+2024,0,female,0,0.1
+2024,1,female,0,0.1
+2024,2,female,0,0.25
+2024,0,female,1,0.3
+2024,1,female,1,0.3
+2024,2,female,1,0.3
+2024,0,male,0,0.1
+2024,1,male,0,0.1
+2024,2,male,0,0.1
+2024,0,male,1,0.1
+2024,1,male,1,0.1
+2024,2,male,1,0.1
+2026,0,female,0,0.2
+2026,1,female,0,0.2
+2026,2,female,0,0.5
+2026,0,female,1,0.6
+2026,1,female,1,0.6
+2026,2,female,1,0.6
+2026,0,male,0,0.2
+2026,1,male,0,0.2
+2026,2,male,0,0.2
+2026,0,male,1,0.2
+2026,1,male,1,0.2
+2026,2,male,1,0.2

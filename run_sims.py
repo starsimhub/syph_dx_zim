@@ -18,94 +18,39 @@ from analyzers import make_analyzers
 LOCATION = 'zimbabwe'
 DATA_DIR = 'data'
 RESULTS_DIR = 'results'
+
+# Rename map: old underscore-format calibration columns → new dot notation
+LEGACY_PAR_RENAME = {
+    'rel_symp_test': 'symp_algo.rel_test',
+    'rel_anc_test':  'anc_screen.rel_test',
+    'rel_kp_test':   'dual_hiv.rel_test',
+}
+
+
+def load_calib_pars(path=None, sort_by_force=True):
+    """
+    Load calibrated parameters, renaming legacy column names to dot notation.
+
+    If sort_by_force=True, sorts by effective syphilis transmission force
+    (strongest first) so the top-N parameter sets are most likely to sustain
+    syphilis dynamics.
+    """
+    if path is None:
+        path = f'{RESULTS_DIR}/{LOCATION}_pars_all.df'
+    df = sc.loadobj(path)
+    df = df.rename(columns=LEGACY_PAR_RENAME)
+    if sort_by_force:
+        beta_col = next((c for c in df.columns if c in ['syph.beta_m2f', 'syph_beta_m2f']), None)
+        rtp_col = next((c for c in df.columns if c in ['syph.rel_trans_primary', 'syph_rel_trans_primary']), None)
+        eff_col = next((c for c in df.columns if c in ['syph.eff_condom', 'syph_eff_condom']), None)
+        if all(c is not None for c in [beta_col, rtp_col, eff_col]):
+            df['eff_force'] = df[beta_col] * df[rtp_col] * (1 - df[eff_col])
+            df = df.sort_values('eff_force', ascending=False).reset_index(drop=True)
+    return df
 FIGURES_DIR = 'figures'
 
 
-def _extract_value(pars):
-    """ Extract value from a calibration parameter dict or scalar """
-    if isinstance(pars, dict):
-        return pars['value']
-    elif sc.isnumber(pars):
-        return pars
-    return None
-
-
-def _get_disease(sim, name):
-    """ Get a disease module by name, works both before and after sim.init() """
-    if sim.initialized:
-        return sim.diseases[name]
-    for d in sim.pars.diseases:
-        if d.name == name:
-            return d
-    return None
-
-
-def _get_network(sim, name):
-    """ Get a network by name, works both before and after sim.init() """
-    if sim.initialized:
-        return sim.networks[name]
-    for n in sim.pars.networks:
-        if n.name == name:
-            return n
-    return None
-
-
-def _get_connector(sim, name):
-    """ Get a connector by name, works both before and after sim.init() """
-    connectors = sim.connectors if sim.initialized else sim.pars.connectors
-    if connectors is not None:
-        for c in connectors:
-            if type(c).__name__ == name:
-                return c
-    return None
-
-
-def make_sim_pars(sim, calib_pars):
-    # Set disease/network/connector pars BEFORE init (needed for rel_init_prev, etc.)
-    for k, pars in calib_pars.items():
-        if k in ['rand_seed', 'index', 'mismatch']:
-            continue
-        v = _extract_value(pars)
-        if v is None:
-            continue
-        if 'syph_' in k:
-            _get_disease(sim, 'syph').pars[k.replace('syph_', '')] = v
-        elif 'hiv_' in k:
-            _get_disease(sim, 'hiv').pars[k.replace('hiv_', '')] = v
-        elif 'nw_' in k:
-            nw = _get_network(sim, 'structuredsexual')
-            par_name = k.replace('nw_', '')
-            if hasattr(nw.pars[par_name], 'set'):
-                nw.pars[par_name].set(v)
-            else:
-                nw.pars[par_name] = v
-        elif 'conn_' in k:
-            conn = _get_connector(sim, 'hiv_syph')
-            par_name = k.replace('conn_', '')
-            conn.pars[par_name] = v
-
-    # Now initialize (uses updated rel_init_prev, etc.)
-    if not sim.initialized:
-        sim.init()
-
-    # Set intervention pars (only accessible after init)
-    for k, pars in calib_pars.items():
-        if k in ['rand_seed', 'index', 'mismatch']:
-            continue
-        v = _extract_value(pars)
-        if v is None:
-            continue
-        if k == 'rel_symp_test':
-            sim.interventions.symp_algo.pars['rel_test'] = v
-        elif k == 'rel_anc_test':
-            sim.interventions.anc_screen.pars['rel_test'] = v
-        elif k == 'rel_kp_test':
-            sim.interventions.dual_hiv.pars['rel_test'] = v
-
-    return sim
-
-
-def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyzers=None, pre_load_calibs=None, par_idx=0):
+def make_sim(scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyzers=None):
 
     # Network
     sexual = sti.StructuredSexual(
@@ -126,16 +71,16 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     networks = [sexual, maternal]
 
     # Diseases
-    diseases, connectors = make_diseases(which=dislist)
+    diseases, connectors = make_diseases()
 
     # Interventions
-    interventions = make_interventions(which=dislist, scenario=scenario, rel_symp_test=1.2, rel_anc_test=1.1)
+    interventions = make_interventions(scenario=scenario, rel_symp_test=1.2, rel_anc_test=1.1)
 
     # Analyzers
-    analyzers = make_analyzers(which=dislist, extra_analyzers=analyzers)
+    analyzers = make_analyzers(extra_analyzers=analyzers)
 
     simpars = dict(
-        use_migration=False, rand_seed=seed, n_agents=10e3, start=start, stop=stop, verbose=verbose,
+        use_migration=False, rand_seed=seed, n_agents=10e3, age_scale=1000, start=start, stop=stop, verbose=verbose,
     )
 
     sim = sti.Sim(
@@ -151,182 +96,16 @@ def make_sim(dislist='all', scenario='soc', seed=1, start=1985, stop=2031, verbo
     sim.scenario = scenario
 
     print('Created sim')
-    if pre_load_calibs is not None:
-        calib_folder = 'results'
-        calib_pars = {}
-        for disease in pre_load_calibs:
-            pars_df = sc.loadobj(f'{calib_folder}/{LOCATION}_pars_{disease}.df')
-            print(f'Loaded calibration parameters for {disease} from {calib_folder}/{LOCATION}_pars_{disease}.df')
-            best_pars = pars_df.iloc[par_idx].to_dict()
-            print(best_pars)
-            calib_pars.update(best_pars)
-        sim = make_sim_pars(sim, calib_pars)  # Sets pre-init pars, then inits, then sets post-init pars
-        print(f'Using calibration parameters for scenario {scenario} and index {par_idx}')
-
-        # Display pars from sim
-        for disease in pre_load_calibs:
-            if disease in sim.diseases:
-                print(f'\n{disease.upper()} parameters:')
-                for k, v in sim.diseases[disease].pars.items():
-                    if k in best_pars:
-                        print(f'  {k}: {v} (calibrated)')
     return sim
-
-
-def run_msim(pre_load_calibs=None, n_pars=1, seed=1, do_save=True):
-
-    # Mave individual sims
-    sims = sc.autolist()
-
-    for par_idx in range(n_pars):
-        sim = make_sim(pre_load_calibs=pre_load_calibs, par_idx=par_idx, seed=seed, stop=2026)
-        if pre_load_calibs is not None:
-            print(f'Using calibration parameters for {pre_load_calibs}')
-        sim.par_idx = par_idx
-        sims += sim
-
-    sims = ss.parallel(sims).sims
-
-    if do_save:
-        dfs = sc.autolist()
-        for sim in sims:
-            par_idx = sim.par_idx
-            df = sim.to_df(resample='year', use_years=True, sep='.')
-            df['res_no'] = par_idx
-            dfs += df
-        df = pd.concat(dfs)
-        sc.saveobj(f'results/msim.df', df)
-
-    return sims
-
-
-def save_stats(sims, resfolder='results'):
-
-    # Epi stats: save for all runs
-    dfs = sc.autolist()
-    for sim in sims:
-
-        par_idx = sim.par_idx
-
-        # Save age/sex epi results
-        age_bins = sim.diseases.syph.age_bins
-        sex_labels = {'f': 'Female', 'm': 'Male'}
-        for disease in ['syph', 'hiv']:
-            for sex in ['f', 'm']:
-                dd = dict()
-                for ab1, ab2 in zip(age_bins[:-1], age_bins[1:]):
-                    age = str(ab1) + '-' + str(ab2)
-                    if ab1 == 65:
-                        age = '65+'  # Combine the last two age groups
-                    dd['age'] = [age]
-                    dd['sex'] = sex_labels[sex]
-                    dd['prevalence'] = sim.results[disease][f'prevalence_{sex}_{ab1}_{ab2}'][-1]
-                    dd['new_infections'] = sim.results[disease][f'new_infections_{sex}_{ab1}_{ab2}'][-120:].mean()
-                    if disease == 'syph':
-                        dd['active_prevalence'] = sim.results[disease][f'active_prevalence_{sex}_{ab1}_{ab2}'][-1]
-                    else:
-                        dd['active_prevalence'] = None
-                    dd['disease'] = disease
-                    dd['par_idx'] = par_idx
-                    dfs += pd.DataFrame(dd)
-    epi_df = pd.concat(dfs)
-    sc.saveobj(f'{resfolder}/epi_df.df', epi_df)
-
-    # Save SW-disaggregated prevalence by age/sex (from final sim state)
-    sw_prev_dfs = sc.autolist()
-    for sim in sims:
-        ppl = sim.people
-        nw = sim.networks.structuredsexual
-        age_bins = sim.diseases.syph.age_bins
-        fsw = nw.fsw
-        client = nw.client
-        for disease in ['syph', 'hiv']:
-            dis = sim.diseases[disease]
-            infected = dis.infected
-            if disease == 'syph':
-                active = dis.active
-            for sex_key, sex_label, sw_flag in [('female', 'Female', fsw), ('male', 'Male', client)]:
-                sex_bool = ppl[sex_key]
-                for ab1, ab2 in zip(age_bins[:-1], age_bins[1:]):
-                    age = f'{ab1}-{ab2}' if ab1 != 65 else '65+'
-                    in_age = sex_bool & ppl.alive & (ppl.age >= ab1) & (ppl.age < ab2)
-                    in_sw = in_age & sw_flag
-                    in_non_sw = in_age & ~sw_flag
-                    for sw_label, mask in [('SW', in_sw), ('Non-SW', in_non_sw), ('Overall', in_age)]:
-                        n = mask.count()
-                        prev = float(np.mean(infected[mask])) if n > 0 else np.nan
-                        dd = dict(age=[age], sex=sex_label, sw_group=sw_label,
-                                  disease=disease, prevalence=prev, par_idx=sim.par_idx)
-                        if disease == 'syph':
-                            dd['active_prevalence'] = float(np.mean(active[mask])) if n > 0 else np.nan
-                        sw_prev_dfs += pd.DataFrame(dd)
-    sw_prev_df = pd.concat(sw_prev_dfs)
-    sc.saveobj(f'{resfolder}/sw_prev_df.df', sw_prev_df)
-
-    # Save time series of syphilis and HIV infections and prevalence
-    ts_dfs = sc.autolist()
-    for sim in sims:
-        ts_df = sim.results.epi_ts.to_df(resample='year', use_years=True, sep='.')
-        ts_df['par_idx'] = sim.par_idx
-        ts_dfs += ts_df
-    ts_df = pd.concat(ts_dfs)
-    sc.saveobj(f'{resfolder}/epi_ts.df', ts_df)
-
-    # Save SW stats
-    sim = [sim for sim in sims if sim.par_idx == 0][0]
-    sw_res = sim.results['sw_stats']
-    sw_df = sw_res.to_df(resample='year', use_years=True, sep='.')
-    sc.saveobj(f'{resfolder}/sw_df.df', sw_df)
-
-    # Save HIV results
-    hiv_res = sim.results['coinfection_stats']
-    hiv_df = hiv_res.to_df(resample='year', use_years=True, sep='.')
-    sc.saveobj(f'{resfolder}/coinf_df.df', hiv_df)
-
-    return
 
 
 if __name__ == '__main__':
 
-    # Set up and run
-
-    # SETTINGS
-    debug = False
     seed = 1
-    do_save = True
-    do_run = True
-    do_plot = True
-    use_calib = False
     scenario = 'soc'
 
-    to_run = [
-        # 'run_hiv',
-        'run_all',
-        # 'run_msim',
-    ]
+    sim = make_sim(stop=2031, seed=seed, scenario=scenario)
+    sim.run()
 
-    if 'run_hiv' in to_run or 'run_stis' in to_run or 'run_all' in to_run:
-        dislist = 'all' if 'run_all' in to_run else 'hiv' if 'run_hiv' in to_run else 'stis'
-        if do_run:
-            pre_load_calibs = ['hiv'] if use_calib else None
-            sim = make_sim(dislist=dislist, stop=2031, seed=seed, scenario=scenario, pre_load_calibs=pre_load_calibs)
-            print(f'Running sim for diseases: {dislist}')
-            print('Initializing sim...')
-            if not sim.initialized: sim.init()
-            print('Diseases in sim:', sim.diseases.keys())
-            print('Analyzers in sim:', sim.analyzers.keys())
-            sim.run()
-
-            if do_save:
-                sc.saveobj(f'results/{scenario}_sim_{dislist}.obj', sim)
-                df = sim.to_df(resample='year', use_years=True, sep='.')
-                sc.saveobj(f'results/{scenario}_sim_{dislist}.df', df)
-        else:
-            df = sc.loadobj(f'results/{scenario}_sim_{dislist}.df')
-
-        if do_plot:
-            from plot_sims import plot_sims
-            df.index = df['timevec']
-            title = 'hiv_plots' if dislist == 'hiv' else 'syph_plots'
-            plot_sims(df, dislist=dislist, which='single', start_year=1985, end_year=2031, title=title)
-
+    df = sim.to_df(resample='year', use_years=True, sep='.')
+    sc.saveobj(f'results/{scenario}_sim.df', df)

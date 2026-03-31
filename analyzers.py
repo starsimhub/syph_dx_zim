@@ -488,17 +488,73 @@ class NetworkSnapshot(ss.Analyzer):
         self.rel_dur_data = dur_by_type
 
 
-def make_analyzers(which='all', extra_analyzers=None):
+class birth_outcome_duration(ss.Analyzer):
+    """
+    Track birth outcomes vs maternal infection duration at delivery.
+    For each MTC transmission, records (infection_duration_years, outcome, stage).
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = 'birth_outcome_duration'
+        self.events = []
+
+    def step(self):
+        sim = self.sim
+        ti = self.ti
+        syph = sim.diseases.syph
+        dt_year = sim.t.dt_year
+
+        # Detect mothers who transmitted via MTC this timestep
+        new_mtc = syph.ti_transmitted_mtc == ti
+        if not new_mtc.any():
+            return
+
+        mnet = sim.networks.maternalnet
+        preg = sim.demographics.pregnancy
+        mother_uids = new_mtc.uids
+
+        for m_uid in mother_uids:
+            baby_uids = ss.uids(mnet.find_contacts(m_uid))
+            if len(baby_uids) == 0:
+                continue
+
+            # Infection duration at delivery (years)
+            ti_exposed = syph.ti_exposed[m_uid]
+            ti_delivery = preg.ti_delivery[m_uid]
+            if np.isnan(ti_exposed) or np.isnan(ti_delivery):
+                continue
+            dur_years = float((ti_delivery - ti_exposed) * dt_year)
+
+            # Mother's stage at transmission
+            if syph.mat_active[m_uid]:
+                stage = 'mat_active'
+            elif syph.early[m_uid]:
+                stage = 'early'
+            elif syph.late[m_uid]:
+                stage = 'late'
+            else:
+                stage = 'other'
+
+            for b_uid in baby_uids:
+                outcome = int(syph.cs_outcome[b_uid])
+                self.events.append(dict(
+                    duration=dur_years,
+                    outcome=outcome,
+                    stage=stage,
+                    ti=ti,
+                ))
+
+
+def make_analyzers(extra_analyzers=None):
     analyzers = sc.autolist()
-    if which in ['all', 'stis']:
-        analyzers += [
-            sti.coinfection_stats('syph', 'hiv', name='coinfection_stats'),
-            sti.coinfection_stats('syph', 'hiv', disease1_infected_state_name='active', name='active_coinfection_stats'),
-            epi_ts(),
-            sti.sw_stats(diseases=['syph', 'hiv']),
-            syph_idalys(),
-            transmission_by_stage(),
-            treatment_outcomes(),
-        ]
+    analyzers += [
+        sti.coinfection_stats('syph', 'hiv', name='coinfection_stats'),
+        sti.coinfection_stats('syph', 'hiv', disease1_infected_state_name='active', name='active_coinfection_stats'),
+        epi_ts(),
+        sti.sw_stats(diseases=['syph', 'hiv']),
+        syph_idalys(),
+        transmission_by_stage(),
+        treatment_outcomes(),
+    ]
     analyzers += sc.autolist(extra_analyzers)
     return analyzers

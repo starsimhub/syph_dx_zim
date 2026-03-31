@@ -261,15 +261,14 @@ def plot_transmission_by_stage_bars(cs, ax):
               loc='upper left', bbox_to_anchor=(0.55, 0.85))
 
 
-def plot_infections_by_sw_pct_combined(sw_df, ax, start_year=2000, end_year=2019):
+def plot_infections_by_sw_pct_combined(cs, ax, start_year=2000, end_year=2019):
     """Infections by sex work status — syphilis and HIV side by side as vertical stacked bars"""
     groups = {'fsw': 'Women in transactional sex', 'client': 'Men in transactional sex',
                'non_fsw': 'Other girls/women', 'non_client': 'Other boys/men'}
     colors = [F_COLOR, M_COLOR, F_COLOR_LIGHT, M_COLOR_LIGHT]
     width = 0.7
 
-    si = sc.findfirst(sw_df.index, start_year)
-    ei = sc.findfirst(sw_df.index, end_year)
+    years = cs.index[(cs.index >= start_year) & (cs.index <= end_year)]
 
     bar_labels = ['Syph\nacquired', 'Syph\ntransmitted', 'HIV\nacquired', 'HIV\ntransmitted']
     x = np.arange(4)
@@ -280,7 +279,8 @@ def plot_infections_by_sw_pct_combined(sw_df, ax, start_year=2000, end_year=2019
         for metric in ['infections', 'transmissions']:
             vals = []
             for group in groups:
-                vals.append(sw_df[f'new_{metric}_{group}_{disease}'][si:ei].mean())
+                col = f'sw_stats.new_{metric}_{group}_{disease}'
+                vals.append(cs.loc[years, (col, '50%')].mean())
             all_vals.append(np.array(vals))
 
     # Normalize each bar to 100%
@@ -439,8 +439,6 @@ def plot_hiv_prev_by_age_lines(cs, fig, inner_gs):
 
 if __name__ == '__main__':
 
-    epi_df = sc.loadobj('results/epi_df.df')
-    sw_df = sc.loadobj('results/sw_df.df')
     sw_prev_df = sc.loadobj('results/sw_prev_df.df')
     cs = sc.loadobj('results/zimbabwe_calib_stats_all.df')
 
@@ -473,7 +471,7 @@ if __name__ == '__main__':
     plot_syph_hiv_ratio_ts(cs, ax_c, start_year=2000)
 
     ax_d = fig.add_subplot(gs_row2[0, 1])
-    plot_infections_by_sw_pct_combined(sw_df, ax=ax_d)
+    plot_infections_by_sw_pct_combined(cs, ax=ax_d)
 
     ax_e = fig.add_subplot(gs_row2[0, 2])
     plot_transmission_by_stage_bars(cs, ax_e)

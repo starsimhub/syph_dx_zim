@@ -234,12 +234,16 @@ def make_scen_specs(scenario):
             self.newborn_algo = 'newborn_testing_'+newborn_algo
 
     scenlist = [
-        ScenSpec(name='soc',    symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='gud',    symp_algo='gud',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='conf',   symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='both',   symp_algo='gud',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='cs',     symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='exam'),
-        ScenSpec(name='no',     symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='soc',      symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='gud',      symp_algo='gud',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf',     symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf_anc', symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf_kp',    symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf_fsw',   symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='conf_plhiv', symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='both',     symp_algo='gud',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
+        ScenSpec(name='cs',       symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='exam'),
+        ScenSpec(name='no',       symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
     ]
 
     scendict = ss.ndict(scenlist)
@@ -385,7 +389,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
 
     # Positive results on dual test may be given a confirmatory test
     # In conf/both scenarios, ALL screening positives (ANC + KP + PLHIV) go through confirmation
-    use_confirmation = scenario in ['conf', 'both']
+    use_confirmation = scenario in ['conf', 'both', 'conf_anc', 'conf_kp', 'conf_fsw', 'conf_plhiv']
 
     if orig_scenario == 'soc+scaleup':
         def to_confirm(sim):
@@ -395,14 +399,36 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
     elif use_confirmation:
         def to_confirm(sim):
             p_anc = sim.interventions['anc_screen'].outcomes['positive'] == sim.interventions['anc_screen'].ti
-            # Pre-intervention: only ANC goes through conf_algo (same as SOC)
-            # Post-intervention: KP and PLHIV also routed through confirmation
+
             if sim.t.now('year') >= intv_year:
                 p_kp = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
                 p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
-                sim._conf_origin_kp = p_kp.uids
-                sim._conf_origin_plhiv = p_plhiv.uids
-                return (p_anc | p_kp | p_plhiv).uids
+
+                # Which pathways get routed through confirmation depends on the scenario
+                if scenario == 'conf_anc':
+                    # Confirmatory test for ANC only — KP/PLHIV go direct to treatment
+                    sim._conf_origin_kp = ss.uids()
+                    sim._conf_origin_plhiv = ss.uids()
+                    return p_anc.uids
+                elif scenario in ['conf_kp', 'conf_fsw', 'conf_plhiv']:
+                    # ANC goes through conf_algo with SOC product (70% treat / 30% nothing).
+                    # Selected group(s) bypass conf_algo — scheduled directly for confirm test.
+                    if scenario == 'conf_kp':
+                        to_confirm_direct = (p_kp | p_plhiv).uids
+                    elif scenario == 'conf_fsw':
+                        to_confirm_direct = p_kp.uids
+                    else:  # conf_plhiv
+                        to_confirm_direct = p_plhiv.uids
+                    if len(to_confirm_direct):
+                        sim.interventions['confirm'].ti_scheduled[to_confirm_direct] = sim.ti
+                    sim._conf_origin_kp = p_kp.uids if scenario in ['conf_kp', 'conf_fsw'] else ss.uids()
+                    sim._conf_origin_plhiv = p_plhiv.uids if scenario in ['conf_kp', 'conf_plhiv'] else ss.uids()
+                    return p_anc.uids  # Only ANC goes through conf_algo
+                else:
+                    # Full confirmation: ANC + KP + PLHIV
+                    sim._conf_origin_kp = p_kp.uids
+                    sim._conf_origin_plhiv = p_plhiv.uids
+                    return (p_anc | p_kp | p_plhiv).uids
             else:
                 sim._conf_origin_kp = ss.uids()
                 sim._conf_origin_plhiv = ss.uids()
@@ -467,8 +493,21 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
 
         if use_confirmation and sim.t.now('year') >= intv_year:
-            # Post-intervention: KP and PLHIV go through conf_algo, NOT directly to treatment
-            to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
+            if scenario == 'conf_anc':
+                # ANC through confirmation, KP/PLHIV direct to treatment
+                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
+            elif scenario == 'conf_fsw':
+                # FSW through confirm (p4); ANC through conf_algo SOC (p1); PLHIV direct
+                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p_plhiv).uids
+            elif scenario == 'conf_plhiv':
+                # PLHIV through confirm (p4); ANC through conf_algo SOC (p1); FSW direct
+                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7).uids
+            elif scenario == 'conf_kp':
+                # ANC through conf_algo SOC (p1); KP+PLHIV through confirm (p4)
+                to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
+            else:
+                # Full confirmation: KP and PLHIV go through conf_algo, NOT directly to treatment
+                to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
         else:
             # Pre-intervention or non-confirmation scenarios: direct to treatment
             to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
@@ -489,14 +528,55 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
             plhiv_from_conf = ss.uids(np.intersect1d(conf_treated_uids, plhiv_origin))
             anc_from_conf = ss.uids(np.setdiff1d(np.setdiff1d(conf_treated_uids, kp_origin), plhiv_origin))
 
-            sim._tx_pathways = sc.objdict(
-                gud_syndromic=(p2 | p3).uids,
-                anc_screen=anc_from_conf,
-                secondary_rash=p6.uids,
-                kp_screen=kp_from_conf,
-                plhiv_screen=plhiv_from_conf,
-                newborn=p8.uids,
-            )
+            if scenario == 'conf_anc':
+                # ANC through confirmation; KP/PLHIV direct
+                sim._tx_pathways = sc.objdict(
+                    gud_syndromic=(p2 | p3).uids,
+                    anc_screen=anc_from_conf,
+                    secondary_rash=p6.uids,
+                    kp_screen=p7.uids,
+                    plhiv_screen=p_plhiv.uids,
+                    newborn=p8.uids,
+                )
+            elif scenario == 'conf_fsw':
+                # FSW through confirm; ANC through conf_algo SOC; PLHIV direct
+                sim._tx_pathways = sc.objdict(
+                    gud_syndromic=(p2 | p3).uids,
+                    anc_screen=anc_from_conf,
+                    secondary_rash=p6.uids,
+                    kp_screen=kp_from_conf,
+                    plhiv_screen=p_plhiv.uids,
+                    newborn=p8.uids,
+                )
+            elif scenario == 'conf_plhiv':
+                # PLHIV through confirm; ANC through conf_algo SOC; FSW direct
+                sim._tx_pathways = sc.objdict(
+                    gud_syndromic=(p2 | p3).uids,
+                    anc_screen=anc_from_conf,
+                    secondary_rash=p6.uids,
+                    kp_screen=p7.uids,
+                    plhiv_screen=plhiv_from_conf,
+                    newborn=p8.uids,
+                )
+            elif scenario == 'conf_kp':
+                # ANC through conf_algo SOC; KP+PLHIV through confirm test
+                sim._tx_pathways = sc.objdict(
+                    gud_syndromic=(p2 | p3).uids,
+                    anc_screen=anc_from_conf,
+                    secondary_rash=p6.uids,
+                    kp_screen=kp_from_conf,
+                    plhiv_screen=plhiv_from_conf,
+                    newborn=p8.uids,
+                )
+            else:
+                sim._tx_pathways = sc.objdict(
+                    gud_syndromic=(p2 | p3).uids,
+                    anc_screen=anc_from_conf,
+                    secondary_rash=p6.uids,
+                    kp_screen=kp_from_conf,
+                    plhiv_screen=plhiv_from_conf,
+                    newborn=p8.uids,
+                )
         else:
             sim._tx_pathways = sc.objdict(
                 gud_syndromic=(p2 | p3).uids,
@@ -552,29 +632,12 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
     return interventions
 
 
-def make_interventions(which='all', scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, syph_years=None, syph_prob=None, plhiv_years=None, plhiv_prob=None):
+def make_interventions(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, syph_years=None, syph_prob=None, plhiv_years=None, plhiv_prob=None):
     """
     Make interventions for syphilis / HIV coinfection model
     """
-    interventions = sc.autolist()
-
-    # HIV interventions
-    if which == 'all':
-        hiv_intvs = make_hiv_intvs(add_dual=True, syph_years=syph_years, syph_prob=syph_prob)
-        syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test, plhiv_years=plhiv_years, plhiv_prob=plhiv_prob)
-        interventions += hiv_intvs + syph_intvs
-
-    elif which == 'hiv':
-        hiv_intvs = make_hiv_intvs(add_dual=False)
-        interventions += hiv_intvs
-
-    # Syphilis testing interventions
-    elif which == 'stis':
-        syph_intvs = make_syph_testing(scenario=scenario)
-        interventions += syph_intvs
-
-    else:
-        raise NotImplementedError(f'Intervention set "{which}" not recognized')
-
+    hiv_intvs = make_hiv_intvs(add_dual=True, syph_years=syph_years, syph_prob=syph_prob)
+    syph_intvs = make_syph_testing(scenario=scenario, rel_anc_test=rel_anc_test, rel_symp_test=rel_symp_test, plhiv_years=plhiv_years, plhiv_prob=plhiv_prob)
+    interventions = sc.autolist(hiv_intvs + syph_intvs)
     return interventions
 

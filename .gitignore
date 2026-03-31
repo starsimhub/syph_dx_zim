@@ -82,3 +82,4 @@ Thumbs.db
 *.bak
 *~
 results/treatment_outcomes_*.df
+Synthesizing co-author feedback_*.md

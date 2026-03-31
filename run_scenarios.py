@@ -17,43 +17,13 @@ os.environ.update(
 
 import numpy as np
 import sciris as sc
-import starsim as ss
+import stisim as sti
 import pandas as pd
-from run_sims import make_sim, _extract_value, _get_disease, _get_network, _get_connector
+from run_sims import make_sim, load_calib_pars
+from run_msim import check_syph_alive
 
 LOCATION = 'zimbabwe'
 RESULTS_DIR = 'results'
-
-
-def check_syph_alive(sim):
-    """Check that syphilis didn't die out (same as calibration check_fn)"""
-    syph_ni = sim.results.syph.new_infections[-60:]  # Last 5 years
-    return float(np.sum(syph_ni)) > 0
-
-
-def set_preinit_pars(sim, calib_pars):
-    """Set disease/network/connector pars on an uninitialized sim (fast, no init)"""
-    for k, pars in calib_pars.items():
-        if k in ['rand_seed', 'index', 'mismatch', 'eff_force']:
-            continue
-        v = _extract_value(pars)
-        if v is None:
-            continue
-        if 'syph_' in k:
-            _get_disease(sim, 'syph').pars[k.replace('syph_', '')] = v
-        elif 'hiv_' in k:
-            _get_disease(sim, 'hiv').pars[k.replace('hiv_', '')] = v
-        elif 'nw_' in k:
-            nw = _get_network(sim, 'structuredsexual')
-            par_name = k.replace('nw_', '')
-            if hasattr(nw.pars[par_name], 'set'):
-                nw.pars[par_name].set(v)
-            else:
-                nw.pars[par_name] = v
-        elif 'conn_' in k:
-            conn = _get_connector(sim, 'hiv_syph')
-            par_name = k.replace('conn_', '')
-            conn.pars[par_name] = v
 
 
 def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=2040, do_save=True):
@@ -63,74 +33,14 @@ def run_scenario(scenario='soc', n_pars=10, seeds_per_par=5, start=1985, stop=20
     For each parameter set, tries multiple seeds and keeps only runs
     where syphilis survives (matching calibration check_fn behavior).
     """
-
-    # Load calibrated parameters, sorted by effective force (strongest first)
-    pars_df = sc.loadobj(f'{RESULTS_DIR}/{LOCATION}_pars_all.df')
-    pars_df['eff_force'] = pars_df['syph_beta_m2f'] * pars_df['syph_rel_trans_primary'] * (1 - pars_df['syph_eff_condom'])
-    pars_df = pars_df.sort_values('eff_force', ascending=False).reset_index(drop=True)
-    n_pars = min(n_pars, len(pars_df))
-    print(f'Running scenario "{scenario}" with {n_pars} parameter sets x {seeds_per_par} seeds')
-
-    # Create UNINITIALIZED sims with pre-init pars set.
-    # sim.init() will happen inside ss.parallel workers, utilizing all cores.
-    sims = sc.autolist()
-    for par_idx in range(n_pars):
-        calib_pars = pars_df.iloc[par_idx].to_dict()
-
-        # Extract intervention rel_test values to pass during sim creation
-        rel_symp = _extract_value(calib_pars.get('rel_symp_test', 1.0)) or 1.0
-        rel_anc = _extract_value(calib_pars.get('rel_anc_test', 1.0)) or 1.0
-
-        # Create one uninitialized base with intervention pars baked in
-        base = make_sim(
-            dislist='all',
-            scenario=scenario,
-            seed=1,
-            start=start,
-            stop=stop,
-            verbose=-1,
-        )
-        # Set pre-init pars (disease, network, connector) — fast, no init
-        set_preinit_pars(base, calib_pars)
-
-        # Set intervention rel_test on the uninitialized intervention objects
-        for intv in base.pars.interventions:
-            if getattr(intv, 'name', '') == 'symp_algo':
-                intv.pars['rel_test'] = rel_symp
-            elif getattr(intv, 'name', '') == 'anc_screen':
-                intv.pars['rel_test'] = rel_anc
-            elif getattr(intv, 'name', '') == 'dual_hiv':
-                intv.pars['rel_test'] = _extract_value(calib_pars.get('rel_kp_test', 1.0)) or 1.0
-
-        for seed in range(1, seeds_per_par + 1):
-            sim = sc.dcp(base)
-            sim.pars['rand_seed'] = seed
-            sim.par_idx = par_idx
-            sim.seed = seed
-            sim.scenario = scenario
-            sims += sim
-
-    print(f'Created {len(sims)} uninitialized sims, running in parallel (init + run)...')
-
-    # Run in parallel — each worker will call sim.init() then sim.run()
-    sims = ss.parallel(sims).sims
-    print(f'Completed {len(sims)} simulations')
-
-    # Filter: keep only runs where syphilis survived
-    # For each par_idx, keep the first surviving seed
-    kept = []
-    for par_idx in range(n_pars):
-        par_sims = [s for s in sims if s.par_idx == par_idx]
-        found = False
-        for s in par_sims:
-            if check_syph_alive(s):
-                kept.append(s)
-                found = True
-                break
-        if not found:
-            print(f'  WARNING: par_idx {par_idx} (eff_force={pars_df.iloc[par_idx]["eff_force"]:.3f}) — syphilis died in all {seeds_per_par} seeds, skipping')
-
-    print(f'Kept {len(kept)}/{n_pars} parameter sets with sustained syphilis')
+    pars_df = load_calib_pars()
+    base = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1)
+    msim = sti.make_calib_sims(
+        calib_pars=pars_df, sim=base, n_parsets=n_pars,
+        seeds_per_par=seeds_per_par, check_fn=check_syph_alive,
+    )
+    kept = msim.sims
+    print(f'Kept {len(kept)} parameter sets with sustained syphilis')
 
     if do_save and len(kept) > 0:
         save_treatment_outcomes(kept, scenario)
@@ -158,9 +68,10 @@ def save_treatment_outcomes(sims, scenario):
                     value=val,
                 ))
 
-        # Also save congenital syphilis outcomes from the disease results
+        # Also save disease-level results needed for health impact analysis
         syph_res = sim.results.syph
-        for key in ['new_congenital', 'new_congenital_deaths']:
+        for key in ['new_congenital', 'new_congenital_deaths', 'new_infections', 'n_active',
+                    'new_treated', 'new_treated_success', 'new_treated_unnecessary', 'new_false_neg']:
             if key in syph_res:
                 vals = np.array(syph_res[key][:], dtype=float)
                 for year, val in zip(yearvec, vals):
@@ -168,7 +79,21 @@ def save_treatment_outcomes(sims, scenario):
                         scenario=scenario,
                         par_idx=par_idx,
                         year=year,
-                        metric=key,
+                        metric=f'syph_{key}',
+                        value=val,
+                    ))
+
+        # Save DALYs from syph_idalys analyzer
+        idalys = sim.results.get('syph_idalys')
+        if idalys is not None:
+            for key in idalys.keys():
+                vals = np.array(idalys[key][:], dtype=float)
+                for year, val in zip(yearvec, vals):
+                    all_rows.append(dict(
+                        scenario=scenario,
+                        par_idx=par_idx,
+                        year=year,
+                        metric=f'syph_idalys_{key}',
                         value=val,
                     ))
 
