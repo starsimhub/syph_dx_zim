@@ -28,7 +28,7 @@
 | 1.5 | Strengthen benzathine penicillin supply angle | Policy implications | ⏳ | Already present — move to lead the paragraph, make it more prominent | OK TO PROCEED |
 | 1.6 | Add HIV context (1–2 sentences) | Introduction | ⏳ | Brief mention of Zimbabwe's generalized HIV epidemic and syphilis-HIV coinfection as setting context | OK TO PROCEED |
 | 1.7 | Investigate + fix Fig 3 vs Fig 4 number discrepancy | Plot scripts + Results text | ⏳ | Both claim treatments/year but numbers differ substantially (~15K GUD in Fig 3 vs ~140K total in Fig 4). Needs debugging of plot scripts before text can be updated. | NOT JUST A TIMING ISSUE — FIG 4 CLAIMS TREATMENTS PER YEAR. NEEDS DEBUGGING. |
-| 1.8 | Update "confirmatory test" terminology | Throughout | ⏳ | Use "screening followed by confirmatory serological testing". Keep "confirmatory" where unambiguous; be approach-specific where not. Per Peters: calling it confirmatory is fine; don't specify T/NT. | PROCEED. PETERS: "CONFIRMATORY" IS PROBABLY FINE; PREFER "SCREENING FOLLOWED BY CONFIRMATORY SEROLOGICAL TESTING". |
+| 1.8 | Rename "confirmatory test" → "POC NT active infection diagnostic" | Throughout | ⏳ | Replace all uses of "confirmatory test" with "POC NT active infection diagnostic". Update scenario name in Table 2, results text, and Fig 4 labels accordingly. | DECISION: CALL IT "POC NT ACTIVE INFECTION DIAGNOSTIC". |
 | 1.9 | Update WHO department name for Peters affiliation | Author affiliations | ✅ | Done in v2 | |
 | 1.10 | Fix author middle initials | Author list | ✅ | Alina M. Muellenmeister, Romesh G. Abeysuriya — done in v2 | |
 | 1.11 | Refocus primary framing on overtreatment reduction | Abstract, Conclusions, throughout | ⏳ | Lori: emphasize combined strategy + ANC bottleneck. Frame syndromic management assumptions as caveats not conclusions ("assuming syndromic management is implemented as per guidelines..."). | DECISION: LORI — REFOCUS ON OVERTREATMENT REDUCTION VIA POC DIAGNOSTICS. SYNDROMIC MANAGEMENT SHOULD BE A CAVEAT NOT A CONCLUSION. |
@@ -43,6 +43,8 @@
 
 **COMMENTS FROM REMCO PETERS (on 1.8):**
 Calling the second test "confirmatory" is probably fine. Prefer "screening followed by confirmatory serological testing" rather than specifying T or NT, since the confirmatory test could be either depending on the algorithm. For novel active-infection tests where the second test assigns infection status rather than improving specificity, be approach-specific.
+
+**RS DECISION (on 1.8):** Use "POC NT active infection diagnostic" as the standard term throughout.
 
 **COMMENT FROM LORI (on 1.11):**
 Refocus paper very clearly on overtreatment reduction via POC diagnostics (GUD + asymptomatic screening in high-risk groups + ANC). Be careful about "syndromic management works reasonably well" — this is an assumption, not a conclusion. Frame as: "assuming syndromic management is implemented as per guidelines..."
