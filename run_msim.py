@@ -127,7 +127,7 @@ def save_results(sims):
     print(f'  Combined DataFrame: {len(resdf)} rows, {len(resdf.columns)} columns')
 
     # Generate percentile statistics grouped by year
-    cs = resdf.groupby(resdf.time).describe(percentiles=percentiles)
+    cs = resdf.groupby(resdf.timevec).describe(percentiles=percentiles)
     sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_stats_all.df', cs)
     print(f'Saved {RESULTS_DIR}/{LOCATION}_calib_stats_all.df')
 
