@@ -116,9 +116,9 @@ def make_calibration():
         data=data,
         prune_fn=prune_low_syph_transmission,
         check_fn=check_sim_alive,
-        study_name=f'{LOCATION}_calibration_v21',
+        study_name=f'{LOCATION}_calibration_v22',
         total_trials=TOTAL_TRIALS,
-        die=False, reseed=False, storage=storage, save_results=True,
+        die=False, reseed=True, storage=storage, save_results=True,
         continue_db=True, keep_db=True,
     )
 
