@@ -22,6 +22,7 @@ msim = sti.make_calib_sims(
 n_alive = len(msim.sims)
 print(f'\nResult: {n_alive}/{n_test} parameter sets sustain transmission with new model changes')
 for i, sim in enumerate(msim.sims):
-    prev = sim.results.syph.prevalence[-1]
+    active_prev = sim.results.syph.active_prevalence[-1]
     ni = np.sum(sim.results.syph.new_infections[-60:])
-    print(f'  Sim {i}: prev={prev:.4f} | new_inf(5yr)={ni:.0f}')
+    hiv_prev = sim.results.hiv.prevalence_15_49[-1]
+    print(f'  Sim {i}: active_prev={active_prev:.4f} | hiv_prev={hiv_prev:.3f} | new_inf(5yr)={ni:.0f}')
