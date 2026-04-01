@@ -35,8 +35,13 @@ RESULTS_DIR = 'results'
 
 
 def check_syph_alive(sim):
-    """Check that syphilis didn't die out (same as calibration check_fn)."""
-    syph_ni = sim.results.syph.new_infections[-60:]  # Last 5 years
+    """Check that syphilis didn't die out anywhere in the simulation.
+
+    Checks the full time series rather than just the tail, since run_msim uses
+    stop=2026 while calibration used stop=2031 — a sim that barely survives to
+    2031 may have a zero-infection window in the 2021-2026 tail.
+    """
+    syph_ni = sim.results.syph.new_infections
     return float(np.sum(syph_ni)) > 0
 
 
@@ -142,7 +147,7 @@ def save_results(sims):
     """
     print('Generating results from sims...')
 
-    dfs = sc.parallelize(_sim_to_df, sims, parallelizer='multiprocess')
+    dfs = sc.parallelize(_sim_to_df, sims, parallelizer='thread')
     resdf = pd.concat(dfs)
     print(f'  Combined DataFrame: {len(resdf)} rows, {len(resdf.columns)} columns')
 
