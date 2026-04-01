@@ -15,18 +15,23 @@ percentile_pairs = [[.01, .99], [.1, .9], [.25, .75]]  # Order by wide to narrow
 percentiles = [.5] + [percentile for percentile_pair in percentile_pairs for percentile in percentile_pair]
 
 
+SYPH_ALIVE_AFTER = 2015  # Require syphilis to have new infections after this year
+
+
 def check_sim_alive(sim):
-    """Check that syphilis and HIV are both sustained in the simulation.
+    """Check that syphilis and HIV are both sustained to the contemporary period.
 
     Used by both calibration (as check_fn) and run_msim (post-run filter).
-    Syphilis is checked over the full time series to avoid false failures
-    from borderline parsets that briefly dip to zero near the end.
-    HIV is checked over the last 60 timesteps (~5 years) so we require it
-    to be alive in the contemporary period, not just historically.
+    Syphilis must have new infections after SYPH_ALIVE_AFTER (default 2015) —
+    a year-based cutoff is robust to stop-year changes and prevents sims where
+    syphilis burns out historically from passing the filter.
+    HIV is checked over the last 60 timesteps (~5 years).
     """
     if sim is None:
         return False
-    if np.sum(sim.results.syph.new_infections) == 0:
+    years = sim.t.yearvec
+    syph_ni = sim.results.syph.new_infections
+    if np.sum(syph_ni[years >= SYPH_ALIVE_AFTER]) == 0:
         return False
     if np.median(sim.results.hiv.prevalence_15_49[-60:]) < 0.05:
         return False
