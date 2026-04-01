@@ -3,6 +3,7 @@ Utils and defaults
 """
 import sciris as sc
 import numpy as np
+import pandas as pd
 
 
 def set_font(size=None, font='Libertinus Sans'):
@@ -46,6 +47,9 @@ def get_metric(df, metric, start_year=None, end_year=None):
         df = df.reset_index()
         df.rename(columns={df.columns[0]: 'year'}, inplace=True)
         time_col = 'year'
+    if pd.api.types.is_datetime64_any_dtype(df[time_col]):
+        df = df.copy()
+        df[time_col] = df[time_col].dt.year
     sub = df
     if start_year is not None:
         sub = sub[sub[time_col] >= start_year]

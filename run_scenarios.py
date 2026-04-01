@@ -51,6 +51,8 @@ def save_treatment_outcomes(sims, scenario):
         df = sim.results.treatment_outcomes.to_df(resample='year', use_years=True)
         df.index.name = 'year'
         df = df.reset_index()
+        if pd.api.types.is_datetime64_any_dtype(df['year']):
+            df['year'] = df['year'].dt.year
         df['par_idx'] = sim.par_idx
         df['scenario'] = scenario
         dfs.append(df)
