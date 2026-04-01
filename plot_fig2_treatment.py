@@ -51,15 +51,11 @@ def load_data(scenario='soc'):
     return sc.loadobj(f'{RESULTS_DIR}/treatment_outcomes_{scenario}.df')
 
 
-def pivot_annual(df, start_year=2000, end_year=END_YEAR):
-    df = df[(df.year >= start_year) & (df.year <= end_year)].copy()
-    df['year_int'] = df.year.astype(int)
-    return df.groupby(['scenario', 'year_int', 'metric']).value.agg(['mean', 'std', 'count']).reset_index()
-
-
 def get_metric(df, metric, start_year=2000, end_year=END_YEAR):
-    sub = df[(df.metric == metric) & (df.year_int >= start_year) & (df.year_int <= end_year)]
-    return sub.set_index('year_int')['mean']
+    """Return mean of metric across parsets for each year in [start_year, end_year]."""
+    time_col = 'timevec' if 'timevec' in df.columns else 'year'
+    sub = df[(df[time_col] >= start_year) & (df[time_col] <= end_year)]
+    return sub.groupby(time_col)[metric].mean()
 
 
 def plot_stacked_outcomes_ts(df, ax, start_year=2000, end_year=END_YEAR):
@@ -237,17 +233,14 @@ def plot_gud_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR):
     """GUD syndromic care-seeking cascade: per 100 primary syphilis infections"""
 
     # Compute cascade from model outputs
-    dt_per_year = 12  # Monthly timesteps
     new_inf = cs.loc[cs.index >= start_year, ('syph.new_infections', '50%')].mean()
     new_inf_f = cs.loc[cs.index >= start_year, ('syph.new_infections_f', '50%')].mean()
     f_frac = new_inf_f / new_inf
     p_visible = f_frac * 0.3 + (1 - f_frac) * 0.5  # p_symp_primary: 30%F, 50%M
 
-    # GUD treatment outcomes: annualize per-timestep averages (× dt_per_year)
-    # to match annual new_infections from calib_stats
-    gud_success = get_metric(df, 'gud_syndromic_success', start_year, end_year).mean() * dt_per_year
-    gud_missed = get_metric(df, 'gud_syndromic_missed', start_year, end_year).mean() * dt_per_year
-    gud_failure = get_metric(df, 'gud_syndromic_failure', start_year, end_year).mean() * dt_per_year
+    gud_success = get_metric(df, 'gud_syndromic_success', start_year, end_year).mean()
+    gud_missed = get_metric(df, 'gud_syndromic_missed', start_year, end_year).mean()
+    gud_failure = get_metric(df, 'gud_syndromic_failure', start_year, end_year).mean()
 
     # Cascade per 100 primary infections
     visible_total = new_inf * p_visible
@@ -318,16 +311,13 @@ def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_
     so they are annualized (×12) before use alongside annual calib_stats totals.
     """
     cols = cs.columns.get_level_values(0)
-    dt_per_year = 12  # Monthly timesteps
 
-    # ANC cascade: treatment_outcomes stores per-TIMESTEP averages (monthly dt=12/yr),
-    # while calib_stats MTC values are ANNUAL totals (via to_df resample='year').
-    # Annualize treatment flows (× dt_per_year). Both sources are already nationally
-    # scaled, so no additional cross-source scaling — the cascade normalizes to per-100.
-    anc_success = get_metric(df, 'anc_screen_success', start_year, end_year).mean() * dt_per_year
-    anc_missed = get_metric(df, 'anc_screen_missed', start_year, end_year).mean() * dt_per_year
-    anc_failure = get_metric(df, 'anc_screen_failure', start_year, end_year).mean() * dt_per_year
-    nb_success = get_metric(df, 'newborn_success', start_year, end_year).mean() * dt_per_year
+    # Both treatment_outcomes (via to_df resample='year') and calib_stats are annual totals.
+    # Both are nationally scaled, so the cascade normalizes to per-100 directly.
+    anc_success = get_metric(df, 'anc_screen_success', start_year, end_year).mean()
+    anc_missed = get_metric(df, 'anc_screen_missed', start_year, end_year).mean()
+    anc_failure = get_metric(df, 'anc_screen_failure', start_year, end_year).mean()
+    nb_success = get_metric(df, 'newborn_success', start_year, end_year).mean()
 
     # Total MTC transmissions per year (annual totals from calib_stats)
     mtc_total = sum(
@@ -437,7 +427,6 @@ if __name__ == '__main__':
 
     scenario = 'soc'
     df = load_data(scenario)
-    annual = pivot_annual(df, start_year=2000, end_year=END_YEAR)
     cs = sc.loadobj(f'{RESULTS_DIR}/zimbabwe_calib_stats_all.df')
 
     set_font(size=20)
@@ -446,21 +435,21 @@ if __name__ == '__main__':
                   wspace=0.25)
 
     ax = fig.add_subplot(gs[0, 0])
-    plot_stacked_outcomes(annual, ax)
+    plot_stacked_outcomes(df, ax)
 
     ax = fig.add_subplot(gs[0, 1])
-    plot_overtreatment_rate_bars(annual, ax)
+    plot_overtreatment_rate_bars(df, ax)
 
     ax = fig.add_subplot(gs[0, 2])
-    plot_stage_at_detection(annual, ax)
+    plot_stage_at_detection(df, ax)
 
     pl.savefig(f'{FIGURES_DIR}/fig3_treatment_outcomes_soc.png', dpi=200, bbox_inches='tight')
     print(f'Saved {FIGURES_DIR}/fig3_treatment_outcomes_soc.png')
 
     # --- Cascade figures ---
     fig2, axes2 = pl.subplots(1, 2, figsize=(22, 10))
-    plot_gud_cascade(annual, cs, axes2[0])
-    plot_congenital_cascade(annual, cs, axes2[1])
+    plot_gud_cascade(df, cs, axes2[0])
+    plot_congenital_cascade(df, cs, axes2[1])
     pl.tight_layout()
     pl.savefig(f'{FIGURES_DIR}/fig2_cascades_soc.png', dpi=200, bbox_inches='tight')
     print(f'Saved {FIGURES_DIR}/fig2_cascades_soc.png')

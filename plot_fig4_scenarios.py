@@ -47,15 +47,11 @@ def load_all_scenarios(scenarios=None):
     return dfs
 
 
-def pivot_annual(df, start_year=2025, end_year=2040):
-    df = df[(df.year >= start_year) & (df.year <= end_year)].copy()
-    df['year_int'] = df.year.astype(int)
-    return df.groupby(['scenario', 'year_int', 'metric']).value.agg(['mean', 'std']).reset_index()
-
-
-def get_metric(ann, metric, start_year=2025, end_year=2040):
-    sub = ann[(ann.metric == metric) & (ann.year_int >= start_year) & (ann.year_int <= end_year)]
-    return sub.set_index('year_int')['mean']
+def get_metric(df, metric, start_year=2025, end_year=2040):
+    """Return mean of metric across parsets for each year in [start_year, end_year]."""
+    time_col = 'timevec' if 'timevec' in df.columns else 'year'
+    sub = df[(df[time_col] >= start_year) & (df[time_col] <= end_year)]
+    return sub.groupby(time_col)[metric].mean()
 
 
 def get_pathway_total(ann, metric_suffix, pathways, start_year=2025, end_year=2040):
@@ -75,8 +71,7 @@ def plot_treatments_ts(dfs, ax, start_year=2025, end_year=2039):
     for scen in SCENARIOS:
         if scen not in dfs:
             continue
-        ann = pivot_annual(dfs[scen], start_year, end_year)
-        adult = get_pathway_total(ann, 'treated', ADULT_PATHWAYS, start_year, end_year)
+        adult = get_pathway_total(dfs[scen], 'treated', ADULT_PATHWAYS, start_year, end_year)
         color = SCENARIO_COLORS[scen]
         label = SCENARIO_LABELS[scen].replace('\n', ' ')
         ax.plot(adult.index, adult, color=color, linewidth=2.5, label=label)
@@ -94,9 +89,8 @@ def plot_overtreatment_ts(dfs, ax, start_year=2025, end_year=2039):
     for scen in SCENARIOS:
         if scen not in dfs:
             continue
-        ann = pivot_annual(dfs[scen], start_year, end_year)
-        treated = get_pathway_total(ann, 'treated', ADULT_PATHWAYS, start_year, end_year)
-        unnecessary = get_pathway_total(ann, 'unnecessary', ADULT_PATHWAYS, start_year, end_year)
+        treated = get_pathway_total(dfs[scen], 'treated', ADULT_PATHWAYS, start_year, end_year)
+        unnecessary = get_pathway_total(dfs[scen], 'unnecessary', ADULT_PATHWAYS, start_year, end_year)
         rate = (unnecessary / treated * 100).clip(upper=100)
 
         color = SCENARIO_COLORS[scen]
@@ -120,9 +114,8 @@ def plot_overtreatment_bars(dfs, ax, start_year=2028, end_year=2039):
         if scen not in dfs:
             rates.append(0)
             continue
-        ann = pivot_annual(dfs[scen], start_year, end_year)
-        treated = get_pathway_total(ann, 'treated', ADULT_PATHWAYS, start_year, end_year)
-        unnecessary = get_pathway_total(ann, 'unnecessary', ADULT_PATHWAYS, start_year, end_year)
+        treated = get_pathway_total(dfs[scen], 'treated', ADULT_PATHWAYS, start_year, end_year)
+        unnecessary = get_pathway_total(dfs[scen], 'unnecessary', ADULT_PATHWAYS, start_year, end_year)
         total_treated = treated.sum()
         total_unnecessary = unnecessary.sum()
         rates.append(total_unnecessary / total_treated * 100 if total_treated > 0 else 0)
@@ -152,12 +145,11 @@ def print_summary_table(dfs, start_year=2028, end_year=2039):
     for scen in SCENARIOS:
         if scen not in dfs:
             continue
-        ann = pivot_annual(dfs[scen], start_year, end_year)
         pws = ADULT_PATHWAYS
         pw_label = '(adult)'
-        treated = get_pathway_total(ann, 'treated', pws, start_year, end_year).mean()
-        success = get_pathway_total(ann, 'success', pws, start_year, end_year).mean()
-        unnecessary = get_pathway_total(ann, 'unnecessary', pws, start_year, end_year).mean()
+        treated = get_pathway_total(dfs[scen], 'treated', pws, start_year, end_year).mean()
+        success = get_pathway_total(dfs[scen], 'success', pws, start_year, end_year).mean()
+        unnecessary = get_pathway_total(dfs[scen], 'unnecessary', pws, start_year, end_year).mean()
         ot_rate = unnecessary / treated * 100 if treated > 0 else 0
         label = SCENARIO_LABELS[scen].replace('\n', ' ')
         print(f'{label:<18} {treated:>12,.0f} {success:>12,.0f} {unnecessary:>12,.0f} {ot_rate:>7.1f}% {pw_label:>14}')
