@@ -20,6 +20,7 @@ RESULTS_DIR = 'results'
 FIGURES_DIR = 'figures'
 
 END_YEAR = 2025
+FIG3_START_YEAR = 2020  # Fig 3 averages over this period (close to Fig 4 baseline year)
 
 PATHWAY_LABELS = {
     'gud_syndromic': 'GUD\nsyndromic',
@@ -44,7 +45,7 @@ OC_COLORS = {
     'missed': '#984ea3',
 }
 
-PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen', 'newborn']
+PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen']  # adult pathways only
 
 
 def load_data(scenario='soc'):
@@ -79,7 +80,7 @@ def plot_stacked_outcomes_ts(df, ax, start_year=2000, end_year=END_YEAR):
     sc.SIticks(ax, axis='y')
 
 
-def plot_stacked_outcomes(df, ax, start_year=2000, end_year=END_YEAR):
+def plot_stacked_outcomes(df, ax, start_year=FIG3_START_YEAR, end_year=END_YEAR):
     """Panel B: Stacked bars — correct (green) + overtreated (red) by pathway"""
     x = np.arange(len(PATHWAYS))
     width = 0.6
@@ -103,14 +104,14 @@ def plot_stacked_outcomes(df, ax, start_year=2000, end_year=END_YEAR):
 
     ax.set_xticks(x)
     ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in PATHWAYS])
-    ax.set_ylabel('Annual average')
+    ax.set_ylabel(f'Annual average ({start_year}–{end_year})')
     ax.set_title('(A) Treatment outcomes\nby pathway')
     ax.legend(frameon=False, fontsize=14)
     ax.set_ylim(bottom=0)
     sc.SIticks(ax, axis='y')
 
 
-def plot_overtreatment_rate_bars(df, ax, start_year=2000, end_year=END_YEAR):
+def plot_overtreatment_rate_bars(df, ax, start_year=FIG3_START_YEAR, end_year=END_YEAR):
     """Panel C: Overtreatment rate (%) by pathway"""
     x = np.arange(len(PATHWAYS))
 
@@ -129,7 +130,7 @@ def plot_overtreatment_rate_bars(df, ax, start_year=2000, end_year=END_YEAR):
     ax.set_xticks(x)
     ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in PATHWAYS])
     ax.set_ylabel('Overtreatment rate (%)')
-    ax.set_title('(B) Overtreatment rate\nby pathway')
+    ax.set_title(f'(B) Overtreatment rate\nby pathway ({start_year}–{end_year} avg)')
     ax.set_ylim(0, 110)
 
 
@@ -167,7 +168,7 @@ STAGE_LABELS = ['Primary', 'Secondary', 'Early latent', 'Late latent', 'Tertiary
 STAGE_COLORS = ['#e41a1c', '#ff7f00', '#984ea3', '#377eb8', '#4daf4a']
 
 
-def plot_stage_at_detection(df, ax, start_year=2000, end_year=END_YEAR):
+def plot_stage_at_detection(df, ax, start_year=FIG3_START_YEAR, end_year=END_YEAR):
     """Panel E: Stage at detection — what stage were correctly treated people in, by pathway"""
     det_pathways = [pw for pw in PATHWAYS if pw != 'newborn']
     x = np.arange(len(det_pathways))
@@ -193,7 +194,7 @@ def plot_stage_at_detection(df, ax, start_year=2000, end_year=END_YEAR):
     ax.set_xticks(x)
     ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in det_pathways])
     ax.set_ylabel('Stage at detection (%)')
-    ax.set_title('(C) Stage at detection\nby pathway')
+    ax.set_title(f'(C) Stage at detection\nby pathway ({start_year}–{end_year} avg)')
     ax.legend(frameon=False, fontsize=14, loc='upper right', ncol=2)
     ax.set_ylim(0, 120)
 
@@ -226,11 +227,12 @@ def plot_congenital_outcomes_ts(df, ax, start_year=2000, end_year=END_YEAR):
 def plot_gud_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR):
     """GUD syndromic care-seeking cascade: per 100 primary syphilis infections"""
 
-    # Compute cascade from model outputs
-    new_inf = cs.loc[cs.index >= start_year, ('syph.new_infections', '50%')].mean()
+    # p_visible: weighted by model incidence sex ratio (correct denominator for "per 100 new primary cases")
+    # p_symp_primary: 30% female, 80% male (updated in recalibration 2.2)
     new_inf_f = cs.loc[cs.index >= start_year, ('syph.new_infections_f', '50%')].mean()
-    f_frac = new_inf_f / new_inf
-    p_visible = f_frac * 0.3 + (1 - f_frac) * 0.5  # p_symp_primary: 30%F, 50%M
+    new_inf_m = cs.loc[cs.index >= start_year, ('syph.new_infections_m', '50%')].mean()
+    new_inf = new_inf_f + new_inf_m
+    p_visible = (new_inf_f * 0.3 + new_inf_m * 0.8) / new_inf if new_inf > 0 else 0.5
 
     gud_success = get_metric(df, 'gud_syndromic_success', start_year, end_year).mean()
     gud_missed = get_metric(df, 'gud_syndromic_missed', start_year, end_year).mean()
