@@ -41,7 +41,12 @@ def check_syph_alive(sim):
 
 
 def _run_one_sim(pars_row, scenario, start, stop):
-    """Run a single sim with the exact seed stored from calibration."""
+    """Run a single sim replaying calibrated parameters.
+
+    Uses the rand_seed stored in pars_row, which is the Optuna-suggested seed
+    that was applied to the calibration sim via default_build_fn. Falls back
+    to seed=1 for legacy pars_df files that predate the reseed fix.
+    """
     seed = int(pars_row.get('rand_seed', 1))
     sim = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1, seed=seed)
     sti.set_sim_pars(sim, pars_row)
@@ -53,19 +58,13 @@ def _run_one_sim(pars_row, scenario, start, stop):
 
 def run_msim(n_pars=None, start=1985, stop=2026, scenario='soc', n_workers=None):
     """
-    Run all calibrated parameter sets, replaying the exact seed used in
-    calibration. Requires reseed=True in run_calibrations.py so that
-    rand_seed is stored per parameter set in pars_df.
+    Run all calibrated parameter sets using seed=1 to match calibration.
+    (rand_seed in pars_df is Optuna metadata, not the actual simulation seed.)
 
     n_pars=None uses all available parameter sets.
     """
     pars_df = load_calib_pars(n=n_pars)
-    if 'rand_seed' not in pars_df.columns:
-        print('WARNING: rand_seed not in pars_df — calibration was run with reseed=False. '
-              'Using seed=1 for all sims. Re-run calibration with reseed=True to fix this.')
-        pars_df['rand_seed'] = 1
-
-    print(f'Running {len(pars_df)} parameter sets with stored calibration seeds')
+    print(f'Running {len(pars_df)} parameter sets (using stored rand_seed per parset)')
     args = [(row.to_dict(), scenario, start, stop) for _, row in pars_df.iterrows()]
     sims = sc.parallelize(_run_one_sim, args, parallelizer='multiprocess', ncpus=n_workers)
     sims = [s for s in sims if check_syph_alive(s)]
@@ -157,12 +156,12 @@ def save_results(sims):
 
 
 def save_sw_prev(sims):
-    """Extract SW prevalence snapshots — these are stored per-sim, not in to_df()"""
+    """Extract SW prevalence snapshots from sw_prev_snapshot analyzer."""
     all_prev = []
     for sim in sims:
-        sw = sim.analyzers.get('sw_stats')
-        if sw is not None and hasattr(sw, 'prev_data') and sw.prev_data is not None:
-            for row in sw.prev_data:
+        snap = sim.analyzers.get('sw_prev_snapshot')
+        if snap is not None and snap.prev_data:
+            for row in snap.prev_data:
                 row = dict(row)
                 row['par_idx'] = sim.par_idx
                 all_prev.append(row)
@@ -171,6 +170,8 @@ def save_sw_prev(sims):
         sw_prev_df = pd.DataFrame(all_prev)
         sc.saveobj(f'{RESULTS_DIR}/sw_prev_df.df', sw_prev_df)
         print(f'Saved {RESULTS_DIR}/sw_prev_df.df ({len(sw_prev_df)} rows)')
+    else:
+        print('WARNING: No sw_prev data found — sw_prev_df.df not saved')
 
 
 if __name__ == '__main__':

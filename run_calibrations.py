@@ -69,7 +69,7 @@ def make_calibration():
     sres = ['hiv.n_on_art', 'n_alive', 'syph.n_active', 'syph.active_prevalence',
             'syph.new_congenital', 'hiv.new_deaths']
 
-    sim = make_sim(verbose=-1, seed=1)
+    sim = make_sim(verbose=-1)
     data = pd.read_csv(f'data/{LOCATION}_all_data.csv')
 
     weights = {
