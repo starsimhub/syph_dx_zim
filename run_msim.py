@@ -23,25 +23,14 @@ os.environ.update(
     MKL_NUM_THREADS='1',
 )
 
-import numpy as np
 import sciris as sc
 import stisim as sti
 import pandas as pd
 from run_sims import make_sim, load_calib_pars
-from utils import percentiles
+from utils import percentiles, check_sim_alive
 
 LOCATION = 'zimbabwe'
 RESULTS_DIR = 'results'
-
-
-def check_syph_alive(sim):
-    """Check that syphilis didn't die out anywhere in the simulation.
-
-    Checks the full time series rather than just the tail — borderline parsets
-    can have a zero-infection window near the end of the simulation period.
-    """
-    syph_ni = sim.results.syph.new_infections
-    return float(np.sum(syph_ni)) > 0
 
 
 def _run_one_sim(pars_row, scenario, start, stop):
@@ -72,8 +61,8 @@ def run_msim(n_pars=None, start=1985, stop=2027, scenario='soc', n_workers=None)
     print(f'Running {len(pars_df)} parameter sets (using stored rand_seed per parset)')
     args = [(row.to_dict(), scenario, start, stop) for _, row in pars_df.iterrows()]
     sims = sc.parallelize(_run_one_sim, args, parallelizer='multiprocess', ncpus=n_workers)
-    sims = [s for s in sims if check_syph_alive(s)]
-    print(f'Kept {len(sims)}/{len(pars_df)} sims (syphilis sustained)')
+    sims = [s for s in sims if check_sim_alive(s)]
+    print(f'Kept {len(sims)}/{len(pars_df)} sims (syph+HIV sustained)')
     return sims
 
 

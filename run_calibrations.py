@@ -12,11 +12,11 @@ os.environ.update(
 )
 
 # %% Imports and settings
-import numpy as np
 import sciris as sc
 import stisim as sti
 import pandas as pd
 from run_sims import make_sim
+from utils import check_sim_alive
 
 
 # Constants
@@ -95,18 +95,6 @@ def make_calibration():
         eff = pars.get('syph.eff_condom', {}).get('value', 0.5)
         force = beta * rtp * (1 - eff)
         return force < 0.5  # Prune if effective force is too low
-
-    # Post-sim check: reject trials where syphilis died out or HIV prevalence is too low
-    def check_sim_alive(sim):
-        if sim is None:
-            return False
-        syph_ni = sim.results.syph.new_infections[-60:]
-        if np.sum(syph_ni) == 0:
-            return False
-        hiv_prev = sim.results.hiv.prevalence_15_49[-60:]
-        if np.median(hiv_prev) < 0.05:
-            return False
-        return True
 
     calib = sti.Calibration(
         calib_pars=calib_pars,
