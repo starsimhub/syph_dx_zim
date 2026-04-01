@@ -26,7 +26,37 @@ from run_msim import run_msim
 
 LOCATION = 'zimbabwe'
 RESULTS_DIR = 'results'
-SCENARIOS = ['soc', 'gud', 'conf', 'both']
+
+# Full 2^4 power set of {gud, anc, kp, plhiv} — 16 scenarios total.
+# Names are underscore-joined components; 'soc', 'conf', 'both' are kept as readable aliases.
+# Without GUD (8):
+#   soc={}  anc={anc}  kp={kp}  plhiv={plhiv}
+#   anc_kp  anc_plhiv  kp_plhiv  conf={anc,kp,plhiv}
+# With GUD (8):
+#   gud  gud_anc  gud_kp  gud_plhiv
+#   gud_anc_kp  gud_anc_plhiv  gud_kp_plhiv  both={gud,anc,kp,plhiv}
+ALL_SCENARIOS = [
+    # --- without GUD ---
+    'soc',
+    'anc',
+    'kp',
+    'plhiv',
+    'anc_kp',
+    'anc_plhiv',
+    'kp_plhiv',
+    'conf',          # = anc_kp_plhiv
+    # --- with GUD ---
+    'gud',
+    'gud_anc',
+    'gud_kp',
+    'gud_plhiv',
+    'gud_anc_kp',
+    'gud_anc_plhiv',
+    'gud_kp_plhiv',
+    'both',          # = gud_anc_kp_plhiv
+]
+
+SCENARIOS = ALL_SCENARIOS  # default: run everything
 
 
 def run_scenario(scenario='soc', n_pars=None, start=1985, stop=2041, n_workers=None, do_save=True):
@@ -69,5 +99,15 @@ if __name__ == '__main__':
     n_pars = None  # None = all surviving parsets
     stop = 2041
 
-    for scenario in SCENARIOS:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--scenarios', nargs='+', default=None,
+                        help='Subset of scenarios to run (default: all 16)')
+    parser.add_argument('--n_pars', type=int, default=None)
+    args = parser.parse_args()
+
+    n_pars = args.n_pars
+    to_run = args.scenarios if args.scenarios else ALL_SCENARIOS
+
+    for scenario in to_run:
         run_scenario(scenario=scenario, n_pars=n_pars, stop=stop)

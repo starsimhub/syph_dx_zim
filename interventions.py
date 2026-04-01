@@ -221,35 +221,46 @@ class pregnancy_risk_reduction(ss.Intervention):
 __all__ = ['make_syph_testing']
 
 
-def make_scen_specs(scenario):
-    # Define product set for each scenario
+def parse_scenario(scenario):
+    """
+    Parse a scenario name into component flags.
+
+    Scenario names follow a 'component_component_...' convention where
+    components are drawn from {'gud', 'anc', 'kp', 'plhiv'}.
+    Legacy names and special aliases are mapped before parsing.
+
+    Returns:
+        use_gud (bool): GUD POC diagnostic active
+        conf_channels (frozenset): confirmation test channels, subset of {'anc', 'kp', 'plhiv'}
+    """
+    _ALIASES = {
+        'soc':        '',
+        'conf':       'anc_kp_plhiv',
+        'both':       'gud_anc_kp_plhiv',
+        'conf_anc':   'anc',
+        'conf_kp':    'kp_plhiv',   # original conf_kp routes both kp and plhiv
+        'conf_fsw':   'kp',         # conf_fsw routes kp/fsw only (not plhiv)
+        'conf_plhiv': 'plhiv',
+    }
+    normalized = _ALIASES.get(scenario, scenario)
+    parts = set(normalized.split('_')) if normalized else set()
+    use_gud = 'gud' in parts
+    conf_channels = frozenset(parts - {'gud'})
+    return use_gud, conf_channels
+
+
+def make_scen_specs(use_gud, conf_channels):
+    """Build scenario spec from parsed flags."""
     class ScenSpec:
-        def __init__(self, name=None, symp_algo=None, conf_algo=None, newborn_algo=None, newborn_test=None):
-            self.name = name
-            self.newborn_test = newborn_test
+        pass
 
-            # Define algorithms
-            self.symp_algo = 'symp_testing_'+symp_algo
-            self.conf_algo = 'anc_confirm_'+conf_algo
-            self.newborn_algo = 'newborn_testing_'+newborn_algo
-
-    scenlist = [
-        ScenSpec(name='soc',      symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='gud',      symp_algo='gud',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='conf',     symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='conf_anc', symp_algo='soc',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='conf_kp',    symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='conf_fsw',   symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='conf_plhiv', symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='both',     symp_algo='gud',  conf_algo='conf', newborn_algo='soc', newborn_test='exam'),
-        ScenSpec(name='cs',       symp_algo='soc',  conf_algo='soc',  newborn_algo='cs',  newborn_test='exam'),
-        ScenSpec(name='no',       symp_algo='soc',  conf_algo='soc',  newborn_algo='soc', newborn_test='exam'),
-    ]
-
-    scendict = ss.ndict(scenlist)
-    scenspecs = scendict[scenario]
-
-    return scenspecs
+    s = ScenSpec()
+    s.symp_algo = 'symp_testing_' + ('gud' if use_gud else 'soc')
+    # conf_algo product uses 'conf' only when ANC channel gets confirmatory test
+    s.conf_algo = 'anc_confirm_' + ('conf' if 'anc' in conf_channels else 'soc')
+    s.newborn_algo = 'newborn_testing_soc'
+    s.newborn_test = 'exam'
+    return s
 
 
 def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv_years=None, plhiv_prob=None):
@@ -264,18 +275,21 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         - POC confirmatory test after ANC dual
     """
 
-    orig_scenario = scenario[:]  # Save the original scenario for later use
-    if scenario == 'gud+secondary':  # Special case for gud+secondary
-        scenario = 'gud'
-    if scenario == 'soc+scaleup':  # Special case for soc+scaleup
-        scenario = 'soc'
+    orig_scenario = scenario  # Save for special-case checks below
+
+    # Resolve base scenario for flag parsing (handle special-case aliases first)
+    _base = scenario
+    if scenario == 'gud+secondary':
+        _base = 'gud'
+    elif scenario == 'soc+scaleup':
+        _base = 'soc'
+
+    use_gud, conf_channels = parse_scenario(_base)
+    scenspecs = make_scen_specs(use_gud, conf_channels)
 
     symp_test_data = pd.read_csv('data/symp_test_prob_soc.csv')  # Risk group/sex/year-specific symptomatic testing
     years = np.array([1980, 2025, 2041])
     anc_test_data = np.array([0.1, 0.5, 0.5])*rel_anc_test  # ANC testing probabilities over time
-
-    # Make scenario specifications - these determine which algorithm gets created and which tests get added
-    scenspecs = make_scen_specs(scenario)
     intv_year = 2027
 
     # Initialize interventions
@@ -388,8 +402,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
     )
 
     # Positive results on dual test may be given a confirmatory test
-    # In conf/both scenarios, ALL screening positives (ANC + KP + PLHIV) go through confirmation
-    use_confirmation = scenario in ['conf', 'both', 'conf_anc', 'conf_kp', 'conf_fsw', 'conf_plhiv']
+    use_confirmation = bool(conf_channels)
 
     if orig_scenario == 'soc+scaleup':
         def to_confirm(sim):
@@ -404,31 +417,22 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
                 p_kp = sim.interventions['dual_hiv'].outcomes.get('positive', ss.uids()) == sim.interventions['dual_hiv'].ti
                 p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
 
-                # Which pathways get routed through confirmation depends on the scenario
-                if scenario == 'conf_anc':
-                    # Confirmatory test for ANC only — KP/PLHIV go direct to treatment
-                    sim._conf_origin_kp = ss.uids()
-                    sim._conf_origin_plhiv = ss.uids()
-                    return p_anc.uids
-                elif scenario in ['conf_kp', 'conf_fsw', 'conf_plhiv']:
-                    # ANC goes through conf_algo with SOC product (70% treat / 30% nothing).
-                    # Selected group(s) bypass conf_algo — scheduled directly for confirm test.
-                    if scenario == 'conf_kp':
-                        to_confirm_direct = (p_kp | p_plhiv).uids
-                    elif scenario == 'conf_fsw':
-                        to_confirm_direct = p_kp.uids
-                    else:  # conf_plhiv
-                        to_confirm_direct = p_plhiv.uids
-                    if len(to_confirm_direct):
-                        sim.interventions['confirm'].ti_scheduled[to_confirm_direct] = sim.ti
-                    sim._conf_origin_kp = p_kp.uids if scenario in ['conf_kp', 'conf_fsw'] else ss.uids()
-                    sim._conf_origin_plhiv = p_plhiv.uids if scenario in ['conf_kp', 'conf_plhiv'] else ss.uids()
-                    return p_anc.uids  # Only ANC goes through conf_algo
-                else:
-                    # Full confirmation: ANC + KP + PLHIV
-                    sim._conf_origin_kp = p_kp.uids
-                    sim._conf_origin_plhiv = p_plhiv.uids
-                    return (p_anc | p_kp | p_plhiv).uids
+                # Track which positives entered confirmation (for pathway attribution in to_treat)
+                sim._conf_origin_kp = p_kp.uids if 'kp' in conf_channels else ss.uids()
+                sim._conf_origin_plhiv = p_plhiv.uids if 'plhiv' in conf_channels else ss.uids()
+
+                # KP/PLHIV channels in conf_channels bypass conf_algo — scheduled directly for confirm test
+                direct = ss.uids()
+                if 'kp' in conf_channels:
+                    direct = (direct | p_kp).uids
+                if 'plhiv' in conf_channels:
+                    direct = (direct | p_plhiv).uids
+                if len(direct):
+                    sim.interventions['confirm'].ti_scheduled[direct] = sim.ti
+
+                # ANC always flows through conf_algo
+                # (conf_algo uses conf product if 'anc' in conf_channels, else SOC product)
+                return p_anc.uids
             else:
                 sim._conf_origin_kp = ss.uids()
                 sim._conf_origin_plhiv = ss.uids()
@@ -493,21 +497,10 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
         p_plhiv = sim.interventions['plhiv_screen'].outcomes.get('positive', ss.uids()) == sim.interventions['plhiv_screen'].ti
 
         if use_confirmation and sim.t.now('year') >= intv_year:
-            if scenario == 'conf_anc':
-                # ANC through confirmation, KP/PLHIV direct to treatment
-                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
-            elif scenario == 'conf_fsw':
-                # FSW through confirm (p4); ANC through conf_algo SOC (p1); PLHIV direct
-                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p_plhiv).uids
-            elif scenario == 'conf_plhiv':
-                # PLHIV through confirm (p4); ANC through conf_algo SOC (p1); FSW direct
-                to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7).uids
-            elif scenario == 'conf_kp':
-                # ANC through conf_algo SOC (p1); KP+PLHIV through confirm (p4)
-                to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
-            else:
-                # Full confirmation: KP and PLHIV go through conf_algo, NOT directly to treatment
-                to_treat = (p1 | p2 | p3 | p4 | p5 | p6).uids
+            # Channels NOT in conf_channels go directly to treatment
+            kp_direct = p7 if 'kp' not in conf_channels else ss.uids()
+            plhiv_direct = p_plhiv if 'plhiv' not in conf_channels else ss.uids()
+            to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | kp_direct | plhiv_direct).uids
         else:
             # Pre-intervention or non-confirmation scenarios: direct to treatment
             to_treat = (p1 | p2 | p3 | p4 | p5 | p6 | p7 | p_plhiv).uids
@@ -528,55 +521,14 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
             plhiv_from_conf = ss.uids(np.intersect1d(conf_treated_uids, plhiv_origin))
             anc_from_conf = ss.uids(np.setdiff1d(np.setdiff1d(conf_treated_uids, kp_origin), plhiv_origin))
 
-            if scenario == 'conf_anc':
-                # ANC through confirmation; KP/PLHIV direct
-                sim._tx_pathways = sc.objdict(
-                    gud_syndromic=(p2 | p3).uids,
-                    anc_screen=anc_from_conf,
-                    secondary_rash=p6.uids,
-                    kp_screen=p7.uids,
-                    plhiv_screen=p_plhiv.uids,
-                    newborn=p8.uids,
-                )
-            elif scenario == 'conf_fsw':
-                # FSW through confirm; ANC through conf_algo SOC; PLHIV direct
-                sim._tx_pathways = sc.objdict(
-                    gud_syndromic=(p2 | p3).uids,
-                    anc_screen=anc_from_conf,
-                    secondary_rash=p6.uids,
-                    kp_screen=kp_from_conf,
-                    plhiv_screen=p_plhiv.uids,
-                    newborn=p8.uids,
-                )
-            elif scenario == 'conf_plhiv':
-                # PLHIV through confirm; ANC through conf_algo SOC; FSW direct
-                sim._tx_pathways = sc.objdict(
-                    gud_syndromic=(p2 | p3).uids,
-                    anc_screen=anc_from_conf,
-                    secondary_rash=p6.uids,
-                    kp_screen=p7.uids,
-                    plhiv_screen=plhiv_from_conf,
-                    newborn=p8.uids,
-                )
-            elif scenario == 'conf_kp':
-                # ANC through conf_algo SOC; KP+PLHIV through confirm test
-                sim._tx_pathways = sc.objdict(
-                    gud_syndromic=(p2 | p3).uids,
-                    anc_screen=anc_from_conf,
-                    secondary_rash=p6.uids,
-                    kp_screen=kp_from_conf,
-                    plhiv_screen=plhiv_from_conf,
-                    newborn=p8.uids,
-                )
-            else:
-                sim._tx_pathways = sc.objdict(
-                    gud_syndromic=(p2 | p3).uids,
-                    anc_screen=anc_from_conf,
-                    secondary_rash=p6.uids,
-                    kp_screen=kp_from_conf,
-                    plhiv_screen=plhiv_from_conf,
-                    newborn=p8.uids,
-                )
+            sim._tx_pathways = sc.objdict(
+                gud_syndromic=(p2 | p3).uids,
+                anc_screen=anc_from_conf,
+                secondary_rash=p6.uids,
+                kp_screen=(kp_from_conf if 'kp' in conf_channels else p7).uids,
+                plhiv_screen=(plhiv_from_conf if 'plhiv' in conf_channels else p_plhiv).uids,
+                newborn=p8.uids,
+            )
         else:
             sim._tx_pathways = sc.objdict(
                 gud_syndromic=(p2 | p3).uids,
@@ -623,7 +575,7 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
     interventions += [pregnancy_risk]
 
     # Add no intervention scenario
-    if scenario == 'no':
+    if orig_scenario == 'no':
         no_interventions = sc.dcp(interventions)
         for intv in no_interventions:
             intv.end = intv_year
