@@ -126,22 +126,23 @@ def prune_columns(df):
     return df[keep]
 
 
+def _sim_to_df(sim):
+    """Extract and prune a single sim's results. Used by save_results for parallel processing."""
+    df = sim.to_df(resample='year', use_years=True, sep='.')
+    df = prune_columns(df)
+    df['par_idx'] = sim.par_idx
+    return df
+
+
 def save_results(sims):
     """
     Generate percentile statistics and save.
     Uses sim.to_df() then prunes to ~100 columns used by plot scripts.
+    Parallelises the per-sim to_df/prune step across all available CPUs.
     """
     print('Generating results from sims...')
 
-    dfs = sc.autolist()
-    for i, sim in enumerate(sims):
-        df = sim.to_df(resample='year', use_years=True, sep='.')
-        df = prune_columns(df)
-        df['par_idx'] = sim.par_idx
-        dfs += df
-        if (i + 1) % 50 == 0:
-            print(f'  Processed {i + 1}/{len(sims)} sims')
-
+    dfs = sc.parallelize(_sim_to_df, sims, parallelizer='multiprocess')
     resdf = pd.concat(dfs)
     print(f'  Combined DataFrame: {len(resdf)} rows, {len(resdf.columns)} columns')
 
