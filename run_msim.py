@@ -58,10 +58,11 @@ def _run_one_sim(pars_row, scenario, start, stop):
 
 def run_msim(n_pars=None, start=1985, stop=2026, scenario='soc', n_workers=None):
     """
-    Run all calibrated parameter sets using seed=1 to match calibration.
-    (rand_seed in pars_df is Optuna metadata, not the actual simulation seed.)
+    Run all calibrated parameter sets.
 
-    n_pars=None uses all available parameter sets.
+    Each parset is replayed with its stored rand_seed (the Optuna-suggested seed
+    applied during calibration via default_build_fn). n_pars=None uses all available
+    parameter sets.
     """
     pars_df = load_calib_pars(n=n_pars)
     print(f'Running {len(pars_df)} parameter sets (using stored rand_seed per parset)')
@@ -176,7 +177,7 @@ def save_sw_prev(sims):
 
 if __name__ == '__main__':
 
-    n_pars = 200
+    n_pars = None  # Use all surviving parsets
     stop = 2026
 
     sims = run_msim(n_pars=n_pars, stop=stop)

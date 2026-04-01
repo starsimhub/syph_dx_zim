@@ -424,7 +424,7 @@ class sw_prev_snapshot(ss.Analyzer):
         self.prev_data = []
 
     def step(self):
-        if self.sim.t.yearvec[self.ti] == self.year:
+        if abs(self.sim.t.yearvec[self.ti] - self.year) < 0.5:
             self._capture()
 
     def _capture(self):
@@ -612,7 +612,7 @@ def make_analyzers(extra_analyzers=None):
         sti.coinfection_stats('syph', 'hiv', disease1_infected_state_name='active', name='active_coinfection_stats'),
         epi_ts(),
         sti.sw_stats(diseases=['syph', 'hiv']),
-        sw_prev_snapshot(year=2020, diseases=['syph', 'hiv']),
+        sw_prev_snapshot(year=2016, diseases=['syph', 'hiv']),  # 2016 = ZIMPHIA survey year for panel A comparison
         syph_idalys(),
         transmission_by_stage(),
         treatment_outcomes(),
