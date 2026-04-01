@@ -27,7 +27,7 @@ FIGURES_DIR = 'figures'
 
 
 # Run settings
-TOTAL_TRIALS = 2000
+TOTAL_TRIALS = 200
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
 
