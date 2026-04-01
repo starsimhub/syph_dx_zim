@@ -37,9 +37,8 @@ RESULTS_DIR = 'results'
 def check_syph_alive(sim):
     """Check that syphilis didn't die out anywhere in the simulation.
 
-    Checks the full time series rather than just the tail, since run_msim uses
-    stop=2026 while calibration used stop=2031 — a sim that barely survives to
-    2031 may have a zero-infection window in the 2021-2026 tail.
+    Checks the full time series rather than just the tail — borderline parsets
+    can have a zero-infection window near the end of the simulation period.
     """
     syph_ni = sim.results.syph.new_infections
     return float(np.sum(syph_ni)) > 0
@@ -61,7 +60,7 @@ def _run_one_sim(pars_row, scenario, start, stop):
     return sim
 
 
-def run_msim(n_pars=None, start=1985, stop=2026, scenario='soc', n_workers=None):
+def run_msim(n_pars=None, start=1985, stop=2027, scenario='soc', n_workers=None):
     """
     Run all calibrated parameter sets.
 
@@ -184,7 +183,7 @@ def save_sw_prev(sims):
 if __name__ == '__main__':
 
     n_pars = 200  # 10% of 2000 calibration trials; load_calib_pars caps at available if fewer survive
-    stop = 2026
+    stop = 2027
 
     sims = run_msim(n_pars=n_pars, stop=stop)
 

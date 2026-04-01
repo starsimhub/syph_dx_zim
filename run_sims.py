@@ -52,7 +52,7 @@ def load_calib_pars(path=None, sort_by_force=True, n=None):
 FIGURES_DIR = 'figures'
 
 
-def make_sim(scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyzers=None):
+def make_sim(scenario='soc', seed=1, start=1985, stop=2027, verbose=1/12, analyzers=None):
 
     # Network
     sexual = sti.StructuredSexual(
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     seed = 1
     scenario = 'soc'
 
-    sim = make_sim(stop=2031, seed=seed, scenario=scenario)
+    sim = make_sim(stop=2027, seed=seed, scenario=scenario)
     sim.run()
 
     df = sim.to_df(resample='year', use_years=True, sep='.')
