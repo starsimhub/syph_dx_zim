@@ -177,7 +177,7 @@ def save_sw_prev(sims):
 
 if __name__ == '__main__':
 
-    n_pars = None  # Use all surviving parsets
+    n_pars = 200  # 10% of 2000 calibration trials; load_calib_pars caps at available if fewer survive
     stop = 2026
 
     sims = run_msim(n_pars=n_pars, stop=stop)
