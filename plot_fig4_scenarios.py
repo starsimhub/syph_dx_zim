@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as pl
 from matplotlib.gridspec import GridSpec
-from utils import set_font
+from utils import set_font, get_metric
 
 RESULTS_DIR = 'results'
 FIGURES_DIR = 'figures'
@@ -46,12 +46,6 @@ def load_all_scenarios(scenarios=None):
             print(f'WARNING: {scen} results not found, skipping')
     return dfs
 
-
-def get_metric(df, metric, start_year=2025, end_year=2040):
-    """Return mean of metric across parsets for each year in [start_year, end_year]."""
-    time_col = 'timevec' if 'timevec' in df.columns else 'year'
-    sub = df[(df[time_col] >= start_year) & (df[time_col] <= end_year)]
-    return sub.groupby(time_col)[metric].mean()
 
 
 def get_pathway_total(ann, metric_suffix, pathways, start_year=2025, end_year=2040):

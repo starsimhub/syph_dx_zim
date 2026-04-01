@@ -38,6 +38,17 @@ def check_sim_alive(sim):
     return True
 
 
+def get_metric(df, metric, start_year=None, end_year=None):
+    """Return mean of metric across parsets for each year in [start_year, end_year]."""
+    time_col = 'timevec' if 'timevec' in df.columns else 'year'
+    sub = df
+    if start_year is not None:
+        sub = sub[sub[time_col] >= start_year]
+    if end_year is not None:
+        sub = sub[sub[time_col] <= end_year]
+    return sub.groupby(time_col)[metric].mean()
+
+
 def count(arr): return np.count_nonzero(arr)
 
 

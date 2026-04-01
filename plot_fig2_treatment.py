@@ -14,7 +14,7 @@ import sciris as sc
 import numpy as np
 import matplotlib.pyplot as pl
 from matplotlib.gridspec import GridSpec
-from utils import set_font
+from utils import set_font, get_metric
 
 RESULTS_DIR = 'results'
 FIGURES_DIR = 'figures'
@@ -50,12 +50,6 @@ PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen', 'newborn
 def load_data(scenario='soc'):
     return sc.loadobj(f'{RESULTS_DIR}/treatment_outcomes_{scenario}.df')
 
-
-def get_metric(df, metric, start_year=2000, end_year=END_YEAR):
-    """Return mean of metric across parsets for each year in [start_year, end_year]."""
-    time_col = 'timevec' if 'timevec' in df.columns else 'year'
-    sub = df[(df[time_col] >= start_year) & (df[time_col] <= end_year)]
-    return sub.groupby(time_col)[metric].mean()
 
 
 def plot_stacked_outcomes_ts(df, ax, start_year=2000, end_year=END_YEAR):
