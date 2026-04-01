@@ -40,7 +40,12 @@ def check_sim_alive(sim):
 
 def get_metric(df, metric, start_year=None, end_year=None):
     """Return mean of metric across parsets for each year in [start_year, end_year]."""
-    time_col = 'timevec' if 'timevec' in df.columns else 'year'
+    time_col = next((c for c in ['timevec', 'year'] if c in df.columns), None)
+    if time_col is None:
+        # to_df() returns year as the index; promote it to a column
+        df = df.reset_index()
+        df.rename(columns={df.columns[0]: 'year'}, inplace=True)
+        time_col = 'year'
     sub = df
     if start_year is not None:
         sub = sub[sub[time_col] >= start_year]

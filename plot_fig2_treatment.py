@@ -48,7 +48,7 @@ PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen', 'newborn
 
 
 def load_data(scenario='soc'):
-    return sc.loadobj(f'{RESULTS_DIR}/treatment_outcomes_{scenario}.df')
+    return sc.loadobj(f'{RESULTS_DIR}/treatment_outcomes_{scenario}.df').copy()
 
 
 

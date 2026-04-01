@@ -41,7 +41,7 @@ def load_all_scenarios(scenarios=None):
     dfs = {}
     for scen in scenarios:
         try:
-            dfs[scen] = sc.loadobj(f'{RESULTS_DIR}/treatment_outcomes_{scen}.df')
+            dfs[scen] = sc.loadobj(f'{RESULTS_DIR}/treatment_outcomes_{scen}.df').copy()
         except FileNotFoundError:
             print(f'WARNING: {scen} results not found, skipping')
     return dfs

@@ -49,6 +49,8 @@ def save_treatment_outcomes(sims, scenario):
     dfs = []
     for sim in sims:
         df = sim.results.treatment_outcomes.to_df(resample='year', use_years=True)
+        df.index.name = 'year'
+        df = df.reset_index()
         df['par_idx'] = sim.par_idx
         df['scenario'] = scenario
         dfs.append(df)
