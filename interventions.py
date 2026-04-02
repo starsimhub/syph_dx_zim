@@ -422,13 +422,10 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
                 sim._conf_origin_plhiv = p_plhiv.uids if 'plhiv' in conf_channels else ss.uids()
 
                 # KP/PLHIV channels in conf_channels bypass conf_algo — scheduled directly for confirm test
-                direct = ss.uids()
-                if 'kp' in conf_channels:
-                    direct = (direct | p_kp).uids
-                if 'plhiv' in conf_channels:
-                    direct = (direct | p_plhiv).uids
-                if len(direct):
-                    sim.interventions['confirm'].ti_scheduled[direct] = sim.ti
+                if 'kp' in conf_channels and len(p_kp.uids):
+                    sim.interventions['confirm'].ti_scheduled[p_kp.uids] = sim.ti
+                if 'plhiv' in conf_channels and len(p_plhiv.uids):
+                    sim.interventions['confirm'].ti_scheduled[p_plhiv.uids] = sim.ti
 
                 # ANC always flows through conf_algo
                 # (conf_algo uses conf product if 'anc' in conf_channels, else SOC product)
