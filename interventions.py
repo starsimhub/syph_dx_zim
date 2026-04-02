@@ -42,8 +42,8 @@ class DualTest(sti.HIVTest):
         if self.eligibility is None:
             self.eligibility = lambda sim: ~sim.diseases.hiv.diagnosed
         self.syph_test = syph_test
-        self.syph_years = np.array(syph_years) if syph_years is not None else np.array([2022, 2023, 2041])
-        self.syph_prob = np.array(syph_prob) if syph_prob is not None else np.array([0.0, 0.1, 0.5])
+        self.syph_years = np.array(syph_years) if syph_years is not None else np.array([2026, 2027, 2041])
+        self.syph_prob = np.array(syph_prob) if syph_prob is not None else np.array([0.0, 0.0, 0.5])
 
     def step(self, uids=None):
         sim = self.sim
