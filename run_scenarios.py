@@ -109,5 +109,8 @@ if __name__ == '__main__':
     n_pars = args.n_pars
     to_run = args.scenarios if args.scenarios else ALL_SCENARIOS
 
-    for scenario in to_run:
+    n_total = len(to_run)
+    for i, scenario in enumerate(to_run):
+        print(f'\n[{i+1}/{n_total}] Running scenario: {scenario}')
         run_scenario(scenario=scenario, n_pars=n_pars, stop=stop)
+    print(f'\nDone — {n_total}/{n_total} scenarios completed.')

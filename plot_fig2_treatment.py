@@ -237,32 +237,42 @@ def plot_gud_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR):
     gud_success = get_metric(df, 'gud_syndromic_success', start_year, end_year).mean()
     gud_missed = get_metric(df, 'gud_syndromic_missed', start_year, end_year).mean()
     gud_failure = get_metric(df, 'gud_syndromic_failure', start_year, end_year).mean()
+    gud_unnecessary = get_metric(df, 'gud_syndromic_unnecessary', start_year, end_year).mean()
 
-    # Cascade per 100 primary infections
+    # Cascade per 100 primary infections.
+    # new_inf (from calib_stats "new_" prefix) uses SUM aggregation → annual total.
+    # treatment_outcomes results (no "new_"/"n_" prefix) use MEAN aggregation → per-timestep avg.
+    # Multiply by 12 to convert monthly averages to annual counts.
+    # TODO: fix properly by setting summarize_by='sum' in treatment_outcomes Result definitions.
     visible_total = new_inf * p_visible
-    sought_care_total = gud_success + gud_missed + gud_failure
+    sought_care_total = (gud_success + gud_missed + gud_failure) * 12
     seek_rate = sought_care_total / visible_total if visible_total > 0 else 0
 
+    # Annotation values: non-syphilis GUD treated per 100 primary cases, PPV
+    false_pos_per_100 = (gud_unnecessary * 12) / new_inf * 100 if new_inf > 0 else 0
+    ppv_denom = (gud_success + gud_unnecessary + gud_failure) * 12
+    ppv = (gud_success * 12) / ppv_denom * 100 if ppv_denom > 0 else 0
+
+    # Steps 4+5 merged: syndromic management doesn't involve a discrete test —
+    # the clinician assesses and treats presumptively. Combine sensitivity (80%) and
+    # drug efficacy (98%) into a single "presumptively treated" step.
     steps = [
         100,
         100 * p_visible,
         100 * p_visible * seek_rate,
-        100 * p_visible * seek_rate * 0.80,  # syndromic 80% sensitivity
-        100 * p_visible * seek_rate * 0.80 * 0.98,  # 98% treatment efficacy
+        100 * p_visible * seek_rate * 0.80 * 0.98,
     ]
     labels = [
         'Primary\nsyphilis',
         'Visible\nchancre',
         'Seek\ncare',
-        'Test\npositive',
-        'Correctly\ntreated',
+        'Presumptively\ntreated\nfor syphilis',
     ]
     loss_labels = [
         '',
         'Painless/internal',
         'No care-seeking',
-        'False negative',
-        'Treatment failure',
+        'Missed or treatment failure',
     ]
 
     # Colors: green for retained, with fading
@@ -308,12 +318,14 @@ def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_
     """
     cols = cs.columns.get_level_values(0)
 
-    # Both treatment_outcomes (via to_df resample='year') and calib_stats are annual totals.
-    # Both are nationally scaled, so the cascade normalizes to per-100 directly.
-    anc_success = get_metric(df, 'anc_screen_success', start_year, end_year).mean()
-    anc_missed = get_metric(df, 'anc_screen_missed', start_year, end_year).mean()
-    anc_failure = get_metric(df, 'anc_screen_failure', start_year, end_year).mean()
-    nb_success = get_metric(df, 'newborn_success', start_year, end_year).mean()
+    # treatment_outcomes results (no "new_"/"n_" prefix) use MEAN aggregation → per-timestep avg.
+    # calib_stats "new_mtc_*" uses SUM aggregation → annual total.
+    # Multiply by 12 to convert monthly averages to annual counts before mixing.
+    # TODO: fix properly by setting summarize_by='sum' in treatment_outcomes Result definitions.
+    anc_success = get_metric(df, 'anc_screen_success', start_year, end_year).mean() * 12
+    anc_missed = get_metric(df, 'anc_screen_missed', start_year, end_year).mean() * 12
+    anc_failure = get_metric(df, 'anc_screen_failure', start_year, end_year).mean() * 12
+    nb_success = get_metric(df, 'newborn_success', start_year, end_year).mean() * 12
 
     # Total MTC transmissions per year (annual totals from calib_stats)
     mtc_total = sum(
@@ -443,9 +455,8 @@ if __name__ == '__main__':
     print(f'Saved {FIGURES_DIR}/fig3_treatment_outcomes_soc.png')
 
     # --- Cascade figures ---
-    fig2, axes2 = pl.subplots(1, 2, figsize=(22, 10))
-    plot_gud_cascade(df, cs, axes2[0])
-    plot_congenital_cascade(df, cs, axes2[1])
+    fig2, ax2 = pl.subplots(1, 1, figsize=(12, 10))
+    plot_gud_cascade(df, cs, ax2)
     pl.tight_layout()
     pl.savefig(f'{FIGURES_DIR}/fig2_cascades_soc.png', dpi=200, bbox_inches='tight')
     print(f'Saved {FIGURES_DIR}/fig2_cascades_soc.png')
