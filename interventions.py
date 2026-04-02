@@ -522,8 +522,8 @@ def make_syph_testing(scenario='soc', rel_symp_test=1.0, rel_anc_test=1.0, plhiv
                 gud_syndromic=(p2 | p3).uids,
                 anc_screen=anc_from_conf,
                 secondary_rash=p6.uids,
-                kp_screen=(kp_from_conf if 'kp' in conf_channels else p7).uids,
-                plhiv_screen=(plhiv_from_conf if 'plhiv' in conf_channels else p_plhiv).uids,
+                kp_screen=kp_from_conf if 'kp' in conf_channels else p7.uids,
+                plhiv_screen=plhiv_from_conf if 'plhiv' in conf_channels else p_plhiv.uids,
                 newborn=p8.uids,
             )
         else:
