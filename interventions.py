@@ -74,7 +74,7 @@ def get_testing_products(add_dual=False, syph_years=None, syph_prob=None):
     """
 
     scaleup_years = np.arange(1990, 2021)  # Years for testing
-    years = np.arange(1990, 2041)  # Years for simulation
+    years = np.arange(1990, 2042)  # Years for simulation (extend to 2041 so stop=years[-1]=2041 >= sim stop)
     n_years = len(scaleup_years)
     fsw_prob = np.concatenate([np.linspace(0, 0.75, n_years), np.linspace(0.75, 0.85, len(years) - n_years)])
     low_cd4_prob = np.concatenate([np.linspace(0, 0.85, n_years), np.linspace(0.85, 0.95, len(years) - n_years)])
