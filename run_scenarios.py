@@ -7,9 +7,18 @@ rand_seed) under a different intervention configuration. run_scenario delegates
 to run_msim.run_msim() for the execution loop — so scenario='soc' with the same
 stop year produces identical sims to run_msim.
 
+Scenarios:
+    soc   — standard of care (syndromic management throughout)
+    gud   — GUD POC NT active infection diagnostic
+    anc   — ANC POC NT active infection diagnostic (confirmatory)
+    kp    — KP dual RDT + POC NT active infection diagnostic (confirmatory)
+    plhiv — PLHIV dual RDT + POC NT active infection diagnostic (confirmatory)
+    both  — all four diagnostic use cases active simultaneously
+
 Usage:
-    python run_scenarios.py              # All 4 scenarios, all pars
+    python run_scenarios.py              # All scenarios, all surviving pars
     python run_scenarios.py --n_pars 50  # Quick run with fewer pars
+    python run_scenarios.py --scenarios soc gud kp  # Subset of scenarios
 """
 
 import os
@@ -27,15 +36,7 @@ from run_msim import run_msim
 LOCATION = 'zimbabwe'
 RESULTS_DIR = 'results'
 
-# Full 2^4 power set of {gud, anc, kp, plhiv} — 16 scenarios total.
-# Names are underscore-joined components; 'soc', 'conf', 'both' are kept as readable aliases.
-# Without GUD (8):
-#   soc={}  anc={anc}  kp={kp}  plhiv={plhiv}
-#   anc_kp  anc_plhiv  kp_plhiv  conf={anc,kp,plhiv}
-# With GUD (8):
-#   gud  gud_anc  gud_kp  gud_plhiv
-#   gud_anc_kp  gud_anc_plhiv  gud_kp_plhiv  both={gud,anc,kp,plhiv}
-ALL_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv', 'both']  # 'both' = gud + all conf channels
+ALL_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv', 'both']  # 'both' = all four use cases
 
 SCENARIOS = ALL_SCENARIOS  # default: run everything
 

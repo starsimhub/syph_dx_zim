@@ -35,7 +35,7 @@ PATHWAY_COLORS = {
     'anc_screen': '#377eb8',
     'secondary_rash': '#ff7f00',
     'kp_screen': '#984ea3',
-    'plhiv_screen': '#ff69b4',
+    'plhiv_screen': '#ff7f00',
     'newborn': '#4daf4a',
 }
 
@@ -81,23 +81,20 @@ def plot_stacked_outcomes_ts(df, ax, start_year=2000, end_year=END_YEAR):
 
 
 def plot_stacked_outcomes(df, ax, start_year=FIG3_START_YEAR, end_year=END_YEAR):
-    """Panel B: Stacked bars — correct (green) + overtreated (red) by pathway"""
+    """Panel A: Stacked bars — correctly treated (solid) + overtreated (faded+hatched) by use case.
+    Colors match Fig 4A: pathway color for both components."""
+    from matplotlib.patches import Patch
     x = np.arange(len(PATHWAYS))
     width = 0.6
 
-    success_vals, unnecessary_vals = [], []
-    for pw in PATHWAYS:
-        success_vals.append(get_metric(df, f'{pw}_success', start_year, end_year).mean())
-        unnecessary_vals.append(get_metric(df, f'{pw}_unnecessary', start_year, end_year).mean())
-
-    s = np.array(success_vals)
-    u = np.array(unnecessary_vals)
-
-    ax.bar(x, s, width, label='Correctly treated', color=OC_COLORS['success'], alpha=0.85)
-    ax.bar(x, u, width, bottom=s, label='Overtreated', color=OC_COLORS['unnecessary'], alpha=0.85)
-
-    for i in range(len(PATHWAYS)):
-        total = s[i] + u[i]
+    for i, pw in enumerate(PATHWAYS):
+        s = get_metric(df, f'{pw}_success',     start_year, end_year).mean()
+        u = get_metric(df, f'{pw}_unnecessary', start_year, end_year).mean()
+        color = PATHWAY_COLORS[pw]
+        ax.bar(x[i], s, width, color=color, alpha=0.85)
+        ax.bar(x[i], u, width, bottom=s, color=color, alpha=0.30,
+               hatch='////', edgecolor=color, linewidth=0.5)
+        total = s + u
         if total > 0:
             ax.text(x[i], total + total * 0.02, f'{total:,.0f}',
                     ha='center', va='bottom', fontsize=12)
@@ -105,9 +102,15 @@ def plot_stacked_outcomes(df, ax, start_year=FIG3_START_YEAR, end_year=END_YEAR)
     ax.set_xticks(x)
     ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in PATHWAYS])
     ax.set_ylabel(f'Annual average ({start_year}–{end_year})')
-    ax.set_title('(A) Treatment outcomes\nby pathway')
-    ax.legend(frameon=False, fontsize=14)
+    ax.set_title('(A) Treatment outcomes\nby use case')
+    ax.legend(handles=[
+        Patch(facecolor='#888888', alpha=0.85, label='Correctly treated'),
+        Patch(facecolor='#888888', alpha=0.30, hatch='////', edgecolor='#888888',
+              label='Overtreated'),
+    ], frameon=False, fontsize=14)
     ax.set_ylim(bottom=0)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     sc.SIticks(ax, axis='y')
 
 
@@ -165,7 +168,8 @@ def plot_care_seeking_gap(df, ax, start_year=2000, end_year=END_YEAR):
 
 STAGES = ['primary', 'secondary', 'early', 'late', 'tertiary']
 STAGE_LABELS = ['Primary', 'Secondary', 'Early latent', 'Late latent', 'Tertiary']
-STAGE_COLORS = ['#e41a1c', '#ff7f00', '#984ea3', '#377eb8', '#4daf4a']
+import matplotlib.cm as _cm
+STAGE_COLORS = [_cm.magma(v) for v in [0.15, 0.35, 0.55, 0.72, 0.88]]
 
 
 def plot_stage_at_detection(df, ax, start_year=FIG3_START_YEAR, end_year=END_YEAR):

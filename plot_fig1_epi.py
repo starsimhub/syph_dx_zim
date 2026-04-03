@@ -163,7 +163,8 @@ def plot_transmission_by_stage_bars(cs, ax):
     # --- Sexual transmission by stage ---
     sex_stages = ['primary', 'secondary', 'early']
     sex_labels = ['Primary', 'Secondary', 'Early\nlatent']
-    sex_colors = ['#e41a1c', '#ff7f00', '#984ea3']
+    import matplotlib.cm as _cm
+    sex_colors = [_cm.magma(v) for v in [0.15, 0.35, 0.55]]
 
     sex_total = 0
     sex_vals = {}
@@ -242,22 +243,9 @@ def plot_transmission_by_stage_bars(cs, ax):
     sep_x = (x_sex[-1] + x_mtc[0]) / 2
     ax.axvline(x=sep_x, color='grey', linewidth=2, linestyle='-', alpha=0.5)
 
-    # Legend with annual counts
-    recent = cs.index[(cs.index >= 2015) & (cs.index <= 2024)]
-    cols = cs.columns.get_level_values(0)
-    cong_col = 'syph.new_congenital'
-    annual_cong = cs.loc[recent, (cong_col, '50%')].mean() if cong_col in cols else 0
-    annual_death = sum(
-        cs.loc[recent, (f'transmission_by_stage.new_mtc_{s}_death', '50%')].mean()
-        for s in mtc_stages
-        if f'transmission_by_stage.new_mtc_{s}_death' in cols
-    )
-    legend_labels = [
-        f'Deaths ({annual_death:,.0f}/yr)',
-        f'Congenital ({annual_cong:,.0f}/yr)',
-    ]
     ax.legend(handles=[Patch(facecolor=c, alpha=0.85) for c in outcome_colors],
-              labels=legend_labels, frameon=False, fontsize=14,
+              labels=['Deaths', 'Congenital'],
+              frameon=False, fontsize=14,
               loc='upper left', bbox_to_anchor=(0.55, 0.85))
 
 
