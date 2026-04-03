@@ -29,10 +29,10 @@ BAR_END   = 2040
 ADULT_PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen']
 
 # Scenarios for panels C and D
-TS_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv']
+TS_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv', 'both']
 
 # Non-SOC scenarios for panel B ranking
-ALL_NON_SOC = ['gud', 'anc', 'kp', 'plhiv']
+ALL_NON_SOC = ['gud', 'anc', 'kp', 'plhiv', 'both']
 
 # Pathway → single use-case scenario (for panel A)
 PATHWAY_SCENARIOS = {
@@ -55,6 +55,7 @@ SCENARIO_LABELS = {
     'anc':   'ANC\nconf.',
     'kp':    'KP\nconf.',
     'plhiv': 'PLHIV\nconf.',
+    'both':  'All\nproducts',
 }
 
 OC_COLORS = {'success': '#4daf4a', 'unnecessary': '#e41a1c'}
@@ -65,6 +66,7 @@ TS_COLORS = {
     'anc':   '#377eb8',
     'kp':    '#984ea3',
     'plhiv': '#ff7f00',
+    'both':  '#4daf4a',
 }
 
 

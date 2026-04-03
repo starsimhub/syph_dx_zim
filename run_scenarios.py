@@ -35,7 +35,7 @@ RESULTS_DIR = 'results'
 # With GUD (8):
 #   gud  gud_anc  gud_kp  gud_plhiv
 #   gud_anc_kp  gud_anc_plhiv  gud_kp_plhiv  both={gud,anc,kp,plhiv}
-ALL_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv']
+ALL_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv', 'both']  # 'both' = gud + all conf channels
 
 SCENARIOS = ALL_SCENARIOS  # default: run everything
 
