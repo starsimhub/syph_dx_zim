@@ -13,7 +13,7 @@ Panels:
 import sciris as sc
 import numpy as np
 import matplotlib.pyplot as pl
-from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
+from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Patch
 from utils import set_font, get_metric
 
@@ -28,21 +28,11 @@ BAR_END   = 2040
 
 ADULT_PATHWAYS = ['gud_syndromic', 'anc_screen', 'kp_screen', 'plhiv_screen']
 
-# Scenarios for panels C and D (7 lines / bars)
-TS_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv', 'conf', 'both']
+# Scenarios for panels C and D
+TS_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv']
 
-# All 15 non-SOC scenarios for panel B ranking
-ALL_NON_SOC = [
-    # without GUD
-    'anc', 'kp', 'plhiv',
-    'anc_kp', 'anc_plhiv', 'kp_plhiv',
-    'conf',
-    # with GUD
-    'gud',
-    'gud_anc', 'gud_kp', 'gud_plhiv',
-    'gud_anc_kp', 'gud_anc_plhiv', 'gud_kp_plhiv',
-    'both',
-]
+# Non-SOC scenarios for panel B ranking
+ALL_NON_SOC = ['gud', 'anc', 'kp', 'plhiv']
 
 # Pathway → single use-case scenario (for panel A)
 PATHWAY_SCENARIOS = {
@@ -60,22 +50,11 @@ PATHWAY_LABELS = {
 }
 
 SCENARIO_LABELS = {
-    'soc':           'SOC',
-    'gud':           'GUD\ntest',
-    'anc':           'ANC\nconf.',
-    'kp':            'KP\nconf.',
-    'plhiv':         'PLHIV\nconf.',
-    'anc_kp':        'ANC+KP',
-    'anc_plhiv':     'ANC+PLHIV',
-    'kp_plhiv':      'KP+PLHIV',
-    'conf':          'All conf.',
-    'gud_anc':       'GUD+ANC',
-    'gud_kp':        'GUD+KP',
-    'gud_plhiv':     'GUD+PLHIV',
-    'gud_anc_kp':    'GUD+ANC+KP',
-    'gud_anc_plhiv': 'GUD+ANC+PLHIV',
-    'gud_kp_plhiv':  'GUD+KP+PLHIV',
-    'both':          'All\n(GUD+conf)',
+    'soc':   'SOC',
+    'gud':   'GUD\ntest',
+    'anc':   'ANC\nconf.',
+    'kp':    'KP\nconf.',
+    'plhiv': 'PLHIV\nconf.',
 }
 
 OC_COLORS = {'success': '#4daf4a', 'unnecessary': '#e41a1c'}
@@ -86,32 +65,7 @@ TS_COLORS = {
     'anc':   '#377eb8',
     'kp':    '#984ea3',
     'plhiv': '#ff7f00',
-    'conf':  '#a65628',
-    'both':  '#4daf4a',
 }
-
-# Colors by confirmatory channel combination (same color = same channels, across both subpanels)
-CONF_COMBO_COLORS = {
-    frozenset():                        '#aaaaaa',   # GUD alone (no conf channels)
-    frozenset({'anc'}):                 '#377eb8',   # ANC only
-    frozenset({'kp'}):                  '#984ea3',   # KP only
-    frozenset({'plhiv'}):               '#ff7f00',   # PLHIV only
-    frozenset({'anc', 'kp'}):           '#4daf4a',   # ANC + KP
-    frozenset({'anc', 'plhiv'}):        '#a65628',   # ANC + PLHIV
-    frozenset({'kp', 'plhiv'}):         '#f781bf',   # KP + PLHIV
-    frozenset({'anc', 'kp', 'plhiv'}):  '#e41a1c',   # All conf channels
-}
-
-WITHOUT_GUD = ['anc', 'kp', 'plhiv', 'anc_kp', 'anc_plhiv', 'kp_plhiv', 'conf']
-WITH_GUD    = ['gud', 'gud_anc', 'gud_kp', 'gud_plhiv', 'gud_anc_kp', 'gud_anc_plhiv', 'gud_kp_plhiv', 'both']
-
-
-def conf_channels_from_scenario(scen):
-    """Return frozenset of confirmatory channels (excluding 'gud') for a scenario name."""
-    _ALIASES = {'soc': '', 'conf': 'anc_kp_plhiv', 'both': 'gud_anc_kp_plhiv'}
-    normalized = _ALIASES.get(scen, scen)
-    parts = set(normalized.split('_')) if normalized else set()
-    return frozenset(parts - {'gud'})
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -218,8 +172,7 @@ def _ranking_subpanel(ax, soc_u, scenario_list, dfs, title, start_year, end_year
             continue
         u       = total_unnecessary(dfs[scen], start_year, end_year).mean()
         avoided = soc_u - u
-        conf    = conf_channels_from_scenario(scen)
-        color   = CONF_COMBO_COLORS.get(conf, '#888888')
+        color   = TS_COLORS.get(scen, '#888888')
         label   = SCENARIO_LABELS.get(scen, scen).replace('\n', ' ')
         rows.append((label, avoided, color))
 
@@ -243,52 +196,18 @@ def _ranking_subpanel(ax, soc_u, scenario_list, dfs, title, start_year, end_year
     return max((r[1] for r in rows), default=0)
 
 
-def plot_ranking(dfs, gs_spec, fig, start_year=BAR_START, end_year=BAR_END):
-    """Split Panel B: left = without GUD, right = with GUD, color by conf channel combo."""
+def plot_ranking(dfs, ax, start_year=BAR_START, end_year=BAR_END):
+    """Panel B: ranked horizontal bars for the 4 non-SOC scenarios."""
     if 'soc' not in dfs:
-        ax = fig.add_subplot(gs_spec)
         ax.text(0.5, 0.5, 'SOC data not available', ha='center', transform=ax.transAxes)
         return
 
     soc_u = total_unnecessary(dfs['soc'], start_year, end_year).mean()
-
-    # Nested 1×2 grid within the Panel B space
-    inner = GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_spec, wspace=0.08)
-    ax_l  = fig.add_subplot(inner[0, 0])
-    ax_r  = fig.add_subplot(inner[0, 1])
-
-    # First pass to get shared x limit
-    max_l = max((soc_u - total_unnecessary(dfs[s], start_year, end_year).mean()
-                 for s in WITHOUT_GUD if s in dfs), default=0)
-    max_r = max((soc_u - total_unnecessary(dfs[s], start_year, end_year).mean()
-                 for s in WITH_GUD if s in dfs), default=0)
-    xlim  = max(max_l, max_r) * 1.25
-
-    _ranking_subpanel(ax_l, soc_u, WITHOUT_GUD, dfs,
-                      'Without GUD test', start_year, end_year, xlim, show_ylabel=True)
-    _ranking_subpanel(ax_r, soc_u, WITH_GUD, dfs,
-                      'With GUD test', start_year, end_year, xlim, show_ylabel=False)
-
-    # Shared x-label on left panel only
-    ax_l.set_xlabel(f'Unnecessary treatments avoided/yr vs SOC\n({start_year}–{end_year} average)',
-                    fontsize=11)
-
-    # Super-title for the pair
-    ax_l.set_title(f'(B) Without GUD test', fontsize=13)
-    ax_r.set_title(f'(B) With GUD test', fontsize=13)
-
-    # Legend on right panel
-    legend_handles = [
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset({'anc'})],              alpha=0.85, label='ANC only'),
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset({'kp'})],               alpha=0.85, label='KP only'),
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset({'plhiv'})],            alpha=0.85, label='PLHIV only'),
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset({'anc','kp'})],         alpha=0.85, label='ANC+KP'),
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset({'anc','plhiv'})],      alpha=0.85, label='ANC+PLHIV'),
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset({'kp','plhiv'})],       alpha=0.85, label='KP+PLHIV'),
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset({'anc','kp','plhiv'})], alpha=0.85, label='All conf.'),
-        Patch(facecolor=CONF_COMBO_COLORS[frozenset()],                     alpha=0.85, label='GUD only'),
-    ]
-    ax_r.legend(handles=legend_handles, frameon=False, fontsize=10, loc='lower right')
+    _ranking_subpanel(ax, soc_u, ALL_NON_SOC, dfs,
+                      '(B) Unnecessary treatments avoided vs SOC',
+                      start_year, end_year, show_ylabel=True)
+    ax.set_xlabel(f'Unnecessary treatments avoided/yr vs SOC\n({start_year}–{end_year} average)',
+                  fontsize=11)
 
 
 # ── Panel C: time series ──────────────────────────────────────────────────────
@@ -357,7 +276,7 @@ if __name__ == '__main__':
                    wspace=0.30, hspace=0.40)
 
     plot_pathway_comparison(dfs, fig.add_subplot(gs[0, 0]))
-    plot_ranking(dfs,           gs[0, 1], fig)
+    plot_ranking(dfs,           fig.add_subplot(gs[0, 1]))
     plot_unnecessary_ts(dfs,    fig.add_subplot(gs[1, 0]))
     plot_summary_ot_rate(dfs,   fig.add_subplot(gs[1, 1]))
 

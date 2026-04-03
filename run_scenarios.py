@@ -35,26 +35,7 @@ RESULTS_DIR = 'results'
 # With GUD (8):
 #   gud  gud_anc  gud_kp  gud_plhiv
 #   gud_anc_kp  gud_anc_plhiv  gud_kp_plhiv  both={gud,anc,kp,plhiv}
-ALL_SCENARIOS = [
-    # --- without GUD ---
-    'soc',
-    'anc',
-    'kp',
-    'plhiv',
-    'anc_kp',
-    'anc_plhiv',
-    'kp_plhiv',
-    'conf',          # = anc_kp_plhiv
-    # --- with GUD ---
-    'gud',
-    'gud_anc',
-    'gud_kp',
-    'gud_plhiv',
-    'gud_anc_kp',
-    'gud_anc_plhiv',
-    'gud_kp_plhiv',
-    'both',          # = gud_anc_kp_plhiv
-]
+ALL_SCENARIOS = ['soc', 'gud', 'anc', 'kp', 'plhiv']
 
 SCENARIOS = ALL_SCENARIOS  # default: run everything
 
