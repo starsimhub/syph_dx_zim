@@ -237,7 +237,7 @@ def plot_transmission_by_stage_bars(cs, ax):
 
     # Group labels at very top of panel (axes coords)
     ax.text(0.22, 0.98, 'Sexual', transform=ax.transAxes, ha='center', va='top', fontsize=18, fontweight='bold')
-    ax.text(0.75, 0.98, 'Maternal', transform=ax.transAxes, ha='center', va='top', fontsize=18, fontweight='bold')
+    ax.text(0.75, 0.98, 'Congenital', transform=ax.transAxes, ha='center', va='top', fontsize=18, fontweight='bold')
 
     # Vertical separator
     sep_x = (x_sex[-1] + x_mtc[0]) / 2

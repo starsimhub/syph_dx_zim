@@ -302,8 +302,13 @@ def plot_gud_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR):
     for i in range(1, len(steps)):
         lost = steps[i-1] - steps[i]
         if lost > 0.5:
-            ax.text(steps[i-1] - 0.5, y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
-                    ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
+            if i == len(steps) - 1:
+                # Last loss: place at end of final bar, left-aligned
+                ax.text(12, y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
+                        ha='left', va='bottom', fontsize=12, color='#888888', style='italic')
+            else:
+                ax.text(steps[i-1], y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
+                        ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
 
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
@@ -413,11 +418,11 @@ def plot_congenital_cascade(df, cs, ax, start_year=2015, end_year=END_YEAR, anc_
     for i in range(1, len(steps)):
         lost = steps[i-1] - steps[i]
         if lost > 1:
-            ax.text(steps[i-1] - 0.5, y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
+            ax.text(steps[i-1], y[i] + 0.35, f'\u2212{lost:.0f}: {loss_labels[i]}',
                     ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
 
     # Newborn loss annotations
-    ax.text(remaining - 0.5, nb_y[1] + 0.35, f'\u2212{remaining - known_at_risk:.0f}: Mother not screened',
+    ax.text(remaining, nb_y[1] + 0.35, f'\u2212{remaining - known_at_risk:.0f}: Mother not screened',
             ha='right', va='bottom', fontsize=12, color='#888888', style='italic')
 
     # Section divider
@@ -459,7 +464,7 @@ if __name__ == '__main__':
     print(f'Saved {FIGURES_DIR}/fig3_treatment_outcomes_soc.png')
 
     # --- Cascade figures ---
-    fig2, ax2 = pl.subplots(1, 1, figsize=(12, 10))
+    fig2, ax2 = pl.subplots(1, 1, figsize=(12, 6))
     plot_gud_cascade(df, cs, ax2)
     pl.tight_layout()
     pl.savefig(f'{FIGURES_DIR}/fig2_cascades_soc.png', dpi=200, bbox_inches='tight')
