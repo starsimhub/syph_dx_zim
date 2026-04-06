@@ -31,10 +31,10 @@ COST_BPG = 3.0   # $ per BPG treatment
 POC_MAX  = 5.0   # x-axis ceiling (USD)
 
 BIA_PATHWAYS = [
-    ('gud',   'gud_syndromic', 'GUD\nsyndromic',   '#e41a1c'),
-    ('anc',   'anc_screen',    'ANC\nscreening',   '#377eb8'),
-    ('kp',    'kp_screen',     'KP dual\nRDT',     '#984ea3'),
-    ('plhiv', 'plhiv_screen',  'PLHIV\nscreening', '#ff7f00'),
+    ('gud',   'gud_syndromic', 'GUD POC test',             '#e41a1c'),
+    ('anc',   'anc_screen',    'POC NT diagnostic — ANC',  '#377eb8'),
+    ('kp',    'kp_screen',     'POC NT diagnostic — KP',   '#984ea3'),
+    ('plhiv', 'plhiv_screen',  'POC NT diagnostic — PLHIV','#ff7f00'),
 ]
 
 # Year ranges
@@ -166,40 +166,46 @@ def plot_pathway_comparison(dfs, ax, start_year=BAR_START, end_year=BAR_END):
         x_soc    = group_x[i]
         x_scen   = group_x[i] + bar_w + gap
 
+        # Pre-compute % OT change for the scenario bar label
+        pct_str = ''
+        if 'soc' in dfs and scen in dfs:
+            u_soc = pathway_metric(dfs['soc'], pw, 'unnecessary', start_year, end_year)
+            u_sc  = pathway_metric(dfs[scen],  pw, 'unnecessary', start_year, end_year)
+            if u_soc > 0:
+                pct_str = f'\n{(u_sc - u_soc) / u_soc * 100:+.0f}% OT'
+
         for x, key in [(x_soc, 'soc'), (x_scen, scen)]:
             if key not in dfs:
                 continue
             s = pathway_metric(dfs[key], pw, 'success',     start_year, end_year)
             u = pathway_metric(dfs[key], pw, 'unnecessary', start_year, end_year)
-            # Correctly treated: solid pathway color
             ax.bar(x, s, bar_w, color=pw_color, alpha=0.85)
-            # Overtreated: faded pathway color with hatching
             ax.bar(x, u, bar_w, color=pw_color, alpha=0.30, bottom=s,
                    hatch='////', edgecolor=pw_color, linewidth=0.5)
             total = s + u
             if total > 0:
-                ax.text(x, total * 1.02, f'{total/1000:.1f}K', ha='center', va='bottom')
+                suffix = pct_str if key == scen else ''
+                ax.text(x, total * 1.02, f'{total/1000:.1f}K{suffix}',
+                        ha='center', va='bottom', fontsize=11,
+                        color=pw_color if suffix else 'black', fontweight='bold' if suffix else 'normal')
             max_y = max(max_y, total)
 
-        # % OT change annotation — positioned at the SOC bar height
-        if 'soc' in dfs and scen in dfs:
-            s_soc  = pathway_metric(dfs['soc'],  pw, 'success',     start_year, end_year)
-            u_soc  = pathway_metric(dfs['soc'],  pw, 'unnecessary', start_year, end_year)
-            u_scen = pathway_metric(dfs[scen],   pw, 'unnecessary', start_year, end_year)
-            if u_soc > 0:
-                pct     = (u_scen - u_soc) / u_soc * 100
-                top_soc = s_soc + u_soc
-                ax.text(x_scen, top_soc,
-                        f'{pct:+.0f}% OT',
-                        ha='center', va='bottom',
-                        color=pw_color, fontweight='bold')
+    # Per-bar x-tick labels: GUD\nSOC, GUD\nPOC, ANC\nSOC, etc.
+    short = {'gud_syndromic': 'GUD', 'anc_screen': 'ANC',
+             'kp_screen': 'KP', 'plhiv_screen': 'PLHIV'}
+    tick_xs, tick_lbs = [], []
+    for i, pw in enumerate(ADULT_PATHWAYS):
+        tick_xs.append(group_x[i])
+        tick_xs.append(group_x[i] + bar_w + gap)
+        tick_lbs.append(f'{short[pw]}\nSOC')
+        tick_lbs.append(f'{short[pw]}\nPOC')
+    ax.set_xticks(tick_xs)
+    ax.set_xticklabels(tick_lbs, fontsize=14)
+    ax.tick_params(axis='x', length=0)
 
-    tick_x = group_x + bar_w / 2 + gap / 2
-    ax.set_xticks(tick_x)
-    ax.set_xticklabels([PATHWAY_LABELS[pw] for pw in ADULT_PATHWAYS])
     ax.set_ylabel(f'Annual average ({start_year}–{end_year})')
-    ax.set_title('(A) Per-pathway impact\n(left = SOC,  right = use case alone)')
-    ax.set_ylim(bottom=0, top=50000)
+    ax.set_title(f'(C) Average annual unnecessary treatments\n{BAR_START}–{BAR_END}')
+    ax.set_ylim(bottom=0, top=62000)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     sc.SIticks(ax, axis='y')
@@ -208,7 +214,7 @@ def plot_pathway_comparison(dfs, ax, start_year=BAR_START, end_year=BAR_END):
         Patch(facecolor='#888888', alpha=0.85, label='Correctly treated'),
         Patch(facecolor='#888888', alpha=0.30, hatch='////', edgecolor='#888888',
               label='Overtreated'),
-    ], frameon=False, loc='upper left')
+    ], frameon=False, loc='upper left', fontsize=12)
 
 
 # ── Panel B: ranking (two subpanels) ─────────────────────────────────────────
@@ -243,7 +249,7 @@ def plot_ranking(dfs, ax, start_year=BAR_START, end_year=BAR_END):
     ax.set_yticks(y)
     ax.set_yticklabels([r[0] for r in rows])
     ax.invert_yaxis()
-    ax.set_title('(C) Unnecessary treatments avoided vs SOC')
+    ax.set_title(f'(D) Cumulative unnecessary treatments\navoided vs SOC, {BAR_START}–{BAR_END}')
     ax.set_xlabel(f'Total unnecessary treatments avoided vs SOC\n({start_year}–{end_year} sum)')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -252,7 +258,8 @@ def plot_ranking(dfs, ax, start_year=BAR_START, end_year=BAR_END):
 
 # ── Panel C: stacked area by pathway ─────────────────────────────────────────
 
-def _stacked_pathway_ax(dfs, ax, scen, subtitle, start_year=TS_START, end_year=TS_END):
+def _stacked_pathway_ax(dfs, ax, scen, sublabel, start_year=TS_START, end_year=TS_END,
+                         hide_xaxis=False):
     """Draw one stacked-area sub-panel for a single scenario."""
     if scen not in dfs:
         ax.text(0.5, 0.5, f'{scen} data not available', ha='center', transform=ax.transAxes)
@@ -267,28 +274,55 @@ def _stacked_pathway_ax(dfs, ax, scen, subtitle, start_year=TS_START, end_year=T
         labels.append(PATHWAY_LABELS[pw].replace('\n', ' '))
 
     ax.stackplot(years, ys, colors=colors, labels=labels, alpha=0.85)
-    ax.set_title(subtitle)
-    ax.set_ylabel('Unnecessary treatments/yr')
+    # Sub-label centred at top of sub-panel
+    ax.text(0.5, 0.95, sublabel, transform=ax.transAxes,
+            ha='center', va='top', fontsize=15, fontweight='bold', color='#444444')
+    ax.set_ylabel('')
     ax.set_xlim(start_year, end_year)
     ax.set_ylim(bottom=0)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     sc.SIticks(ax, axis='y')
+    if hide_xaxis:
+        ax.tick_params(axis='x', labelbottom=False)
+        ax.spines['bottom'].set_visible(False)
+    else:
+        ax.xaxis.set_major_formatter(pl.FuncFormatter(lambda x, _: f'{int(x)}'))
     return ax
 
 
 def plot_unnecessary_stacked(dfs, gs_c, fig, start_year=TS_START, end_year=TS_END):
-    """Panel C: stacked area plots — SOC (top sub-panel) and all products (bottom)."""
-    inner = GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_c, hspace=0.45)
+    """Panel A: stacked area plots — SOC (top) and all products (bottom), unified panel."""
+    inner = GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_c, hspace=0)
     ax_top = fig.add_subplot(inner[0])
-    ax_bot = fig.add_subplot(inner[1])
-    ax_top = _stacked_pathway_ax(dfs, ax_top, 'soc',  '(B) Unnecessary treatments by pathway — SOC',
-                                 start_year, end_year)
-    _stacked_pathway_ax(dfs, ax_bot, 'both', '(B) Unnecessary treatments by pathway — All products',
-                        start_year, end_year)
-    # Legend only on top panel
-    if ax_top is not None:
-        ax_top.legend(frameon=False, loc='upper left')
+    ax_bot = fig.add_subplot(inner[1], sharex=ax_top, sharey=ax_top)
+    ax_top = _stacked_pathway_ax(dfs, ax_top, 'soc',  'SOC', start_year, end_year,
+                                  hide_xaxis=True)
+    _stacked_pathway_ax(dfs, ax_bot, 'both', 'All products', start_year, end_year)
+
+    if ax_top is None:
+        return
+
+    # Unified look: remove touching spines
+    ax_top.spines['bottom'].set_visible(False)
+    ax_bot.spines['top'].set_visible(False)
+
+    # Single panel title — now in row 0, col 0
+    ax_top.set_title(f'(A) Unnecessary treatments\n{BAR_START}–{BAR_END}')
+
+    # Single y-label centred across both axes via fig.text
+    pos_top = ax_top.get_position()
+    pos_bot = ax_bot.get_position()
+    mid_y   = (pos_top.y1 + pos_bot.y0) / 2
+    ax_top.set_ylabel('')
+    ax_bot.set_ylabel('')
+    fig.text(pos_bot.x0 - 0.045, mid_y, 'Unnecessary treatments/yr',
+             ha='center', va='center', rotation='vertical', fontsize=14)
+
+    # Legend inside — upper right of top panel
+    handles, labels = ax_top.get_legend_handles_labels()
+    ax_top.legend(handles, labels, frameon=False, loc='upper left',
+                  fontsize=12, ncol=1)
 
 
 # ── Panel D: unnecessary treatments avoided per test ──────────────────────────
@@ -348,7 +382,7 @@ def plot_bia(ax):
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel('Unnecessary treatments avoided\nper test performed')
-    ax.set_title(f'(D) Unnecessary treatments avoided\nper test performed ({BAR_START}–{BAR_END})')
+    ax.set_title(f'(E) Unnecessary treatments avoided\nper test performed ({BAR_START}–{BAR_END})')
     ax.set_ylim(0, 1.05)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -385,16 +419,17 @@ def plot_cost_curve(ax):
 
     ax.set_xlabel('Cost ratio  (test cost / treatment cost)')
     ax.set_ylabel('Net cost per 1,000 tests (USD)')
-    ax.set_title('(E) Net cost vs cost ratio\n(break-even where line crosses zero)')
+    ax.set_title('(F) Net cost vs cost ratio\n(break-even where line crosses zero)')
     ax.set_xlim(0, 1.5)
-    ax.legend(frameon=False, fontsize=11, loc='upper left')
+    ax.legend(frameon=False, fontsize=12, loc='upper left',
+              bbox_to_anchor=(0, 1), borderaxespad=0)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
 
 # ── Panel F: heatmap grid ─────────────────────────────────────────────────────
 
-def plot_heatmap_grid(gs_f, fig):
+def plot_heatmap_grid(gs_f, fig, panel_label=True):
     """Panel F: 2×2 grid of heatmaps — net savings per test performed.
 
     x-axis: test cost ($0–$5)
@@ -408,14 +443,14 @@ def plot_heatmap_grid(gs_f, fig):
     treat_costs = np.linspace(0, 10, 100)
     T, C = np.meshgrid(test_costs, treat_costs)
 
-    inner = GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_f, hspace=0.50, wspace=0.40)
+    inner = GridSpecFromSubplotSpec(2, 2, subplot_spec=gs_f, hspace=0.35, wspace=0.30)
     axes  = [fig.add_subplot(inner[r, c]) for r in range(2) for c in range(2)]
 
     vmin, vmax = -5.0, 5.0   # net savings per test, $
     norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
     cmap = 'RdYlGn'
 
-    for ax, (scen, col, label, color) in zip(axes, BIA_PATHWAYS):
+    for ax, (scen, col, label, _) in zip(axes, BIA_PATHWAYS):
         par_df = _load_bia_par_data(scen, col)
         vals   = par_df['avoided_per_test'].dropna().values
         if len(vals) == 0:
@@ -428,7 +463,7 @@ def plot_heatmap_grid(gs_f, fig):
 
         im = ax.pcolormesh(T, C, net, cmap=cmap, norm=norm, shading='auto')
         ax.contour(T, C, net, levels=[0], colors='black', linewidths=1.2, linestyles='--')
-        ax.set_title(label.replace('\n', ' '), color=color, fontweight='bold', fontsize=13)
+        ax.set_title(label.replace('\n', ' '), color='black', fontsize=13)
         ax.set_xlabel('Test cost ($)')
         ax.set_ylabel('Treatment cost ($)')
         ax.spines['top'].set_visible(False)
@@ -437,11 +472,64 @@ def plot_heatmap_grid(gs_f, fig):
     # Shared colorbar on the right of the last axis
     fig.colorbar(im, ax=axes, label='Net savings per test ($)', shrink=0.6, pad=0.02)
 
-    # Panel (F) label: place above the 2×2 grid using a spanning invisible axis
-    ax_title = fig.add_subplot(gs_f)
-    ax_title.set_axis_off()
-    ax_title.set_title('(F) Net savings per test ($)',
-                       fontsize=24, fontweight='bold', pad=65)
+    if panel_label:
+        fig.text((axes[0].get_position().x0 + axes[1].get_position().x1) / 2,
+                 axes[0].get_position().y1 + 0.02,
+                 '(F) Net savings per test ($)',
+                 ha='center', va='bottom', fontsize=18, fontweight='bold')
+
+
+# ── Panel F: OT rate + correctly treated over time ────────────────────────────
+
+def plot_ot_and_correct(dfs, gs_f, fig, start_year=TS_START, end_year=TS_END):
+    """Panel F: two sub-panels — (top) overtreatment rate over time by scenario;
+    (bottom) correctly treated over time by scenario."""
+    inner   = GridSpecFromSubplotSpec(2, 1, subplot_spec=gs_f, hspace=0)
+    ax_top  = fig.add_subplot(inner[0])
+    ax_bot  = fig.add_subplot(inner[1], sharex=ax_top)
+
+    scen_order = ['soc', 'gud', 'anc', 'kp', 'plhiv', 'both']
+    scen_labels = {k: v.replace('\n', ' ') for k, v in SCENARIO_LABELS.items()}
+
+    for scen in scen_order:
+        if scen not in dfs:
+            continue
+        color = TS_COLORS.get(scen, '#888888')
+        lw    = 2.5 if scen in ('soc', 'both') else 1.5
+        ls    = '--' if scen == 'soc' else '-'
+
+        # Total unnecessary and success across all adult pathways
+        unnec = total_unnecessary(dfs[scen], start_year, end_year)
+        succ  = None
+        for pw in ADULT_PATHWAYS:
+            s = get_metric(dfs[scen], f'{pw}_success', start_year, end_year)
+            succ = s if succ is None else succ.add(s, fill_value=0)
+
+        total = unnec.add(succ, fill_value=0)
+        ot_rate = (unnec / total * 100).where(total > 0)
+
+        ax_top.plot(unnec.index, ot_rate, color=color, lw=lw, ls=ls,
+                    label=scen_labels[scen])
+        ax_bot.plot(succ.index, succ, color=color, lw=lw, ls=ls)
+
+    ax_top.set_ylabel('OT rate (%)')
+    ax_top.set_ylim(0, 105)
+    ax_top.set_title('(B) Overtreatment rate & correctly treated\nby scenario')
+    ax_top.tick_params(axis='x', labelbottom=False)
+    ax_top.spines['top'].set_visible(False)
+    ax_top.spines['right'].set_visible(False)
+    ax_top.spines['bottom'].set_visible(False)
+    handles, labels = ax_top.get_legend_handles_labels()
+    ax_bot.legend(handles, labels, frameon=False, fontsize=12, loc='upper center',
+                  bbox_to_anchor=(0.5, -0.25), ncol=3)
+
+    ax_bot.set_ylabel('Correctly treated/yr')
+    ax_bot.set_xlim(start_year, end_year)
+    ax_bot.set_ylim(bottom=0)
+    ax_bot.xaxis.set_major_formatter(pl.FuncFormatter(lambda x, _: f'{int(x)}'))
+    ax_bot.spines['top'].set_visible(False)
+    ax_bot.spines['right'].set_visible(False)
+    sc.SIticks(ax_bot, axis='y')
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -454,17 +542,28 @@ if __name__ == '__main__':
         print('SOC results not found. Run run_scenarios.py first.')
         exit()
 
-    set_font(size=18)
-    fig = pl.figure(figsize=(36, 20))
-    gs  = GridSpec(2, 3, left=0.06, right=0.97, bottom=0.08, top=0.94,
-                   wspace=0.35, hspace=0.45)
+    set_font(size=16)
 
-    plot_pathway_comparison(dfs,  fig.add_subplot(gs[0, 0]))   # A
-    plot_unnecessary_stacked(dfs, gs[0, 1], fig)                # B
-    plot_ranking(dfs,             fig.add_subplot(gs[0, 2]))    # C
-    plot_bia(fig.add_subplot(gs[1, 0]))                         # D
-    plot_cost_curve(fig.add_subplot(gs[1, 1]))                  # E
-    plot_heatmap_grid(gs[1, 2], fig)                            # F
+    # ── Figure 4: 2×3 layout ──
+    fig4 = pl.figure(figsize=(22, 13))
+    gs4  = GridSpec(2, 3, left=0.07, right=0.97, bottom=0.10, top=0.94,
+                    wspace=0.38, hspace=0.50)
 
-    pl.savefig(f'{FIGURES_DIR}/fig4_scenario_comparison.png', dpi=200, bbox_inches='tight')
+    plot_unnecessary_stacked(dfs, gs4[0, 0], fig4)              # A — (0,0)
+    plot_ot_and_correct(dfs,      gs4[0, 1], fig4)              # B — (0,1)
+    plot_pathway_comparison(dfs,  fig4.add_subplot(gs4[0, 2]))  # C — (0,2)
+    plot_ranking(dfs,             fig4.add_subplot(gs4[1, 0]))  # D — (1,0)
+    plot_bia(fig4.add_subplot(gs4[1, 1]))                       # E — (1,1)
+    plot_cost_curve(fig4.add_subplot(gs4[1, 2]))                # F — (1,2)
+
+    fig4.savefig(f'{FIGURES_DIR}/fig4_scenario_comparison.png', dpi=200, bbox_inches='tight')
     print(f'Saved {FIGURES_DIR}/fig4_scenario_comparison.png')
+    pl.close(fig4)
+
+    # ── Figure 5: heatmap grid ──
+    fig5 = pl.figure(figsize=(12, 6))
+    gs5  = GridSpec(1, 1, left=0.08, right=0.88, bottom=0.08, top=0.96)
+    plot_heatmap_grid(gs5[0, 0], fig5, panel_label=False)
+
+    fig5.savefig(f'{FIGURES_DIR}/fig5_heatmaps.png', dpi=200, bbox_inches='tight')
+    print(f'Saved {FIGURES_DIR}/fig5_heatmaps.png')
