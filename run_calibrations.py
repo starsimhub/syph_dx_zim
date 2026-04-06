@@ -12,11 +12,11 @@ os.environ.update(
 )
 
 # %% Imports and settings
-import numpy as np
 import sciris as sc
 import stisim as sti
 import pandas as pd
 from run_sims import make_sim
+from utils import check_sim_alive
 
 
 # Constants
@@ -27,7 +27,7 @@ FIGURES_DIR = 'figures'
 
 
 # Run settings
-TOTAL_TRIALS = 2000
+TOTAL_TRIALS = 200
 storage = None
 do_shrink = True  # Whether to shrink the calibration results
 
@@ -69,7 +69,7 @@ def make_calibration():
     sres = ['hiv.n_on_art', 'n_alive', 'syph.n_active', 'syph.active_prevalence',
             'syph.new_congenital', 'hiv.new_deaths']
 
-    sim = make_sim(verbose=-1, seed=1)
+    sim = make_sim(verbose=-1)
     data = pd.read_csv(f'data/{LOCATION}_all_data.csv')
 
     weights = {
@@ -96,18 +96,6 @@ def make_calibration():
         force = beta * rtp * (1 - eff)
         return force < 0.5  # Prune if effective force is too low
 
-    # Post-sim check: reject trials where syphilis died out or HIV prevalence is too low
-    def check_sim_alive(sim):
-        if sim is None:
-            return False
-        syph_ni = sim.results.syph.new_infections[-60:]
-        if np.sum(syph_ni) == 0:
-            return False
-        hiv_prev = sim.results.hiv.prevalence_15_49[-60:]
-        if np.median(hiv_prev) < 0.05:
-            return False
-        return True
-
     calib = sti.Calibration(
         calib_pars=calib_pars,
         extra_results=sres,
@@ -116,9 +104,9 @@ def make_calibration():
         data=data,
         prune_fn=prune_low_syph_transmission,
         check_fn=check_sim_alive,
-        study_name=f'{LOCATION}_calibration_v21',
+        study_name=f'{LOCATION}_calibration_v22',
         total_trials=TOTAL_TRIALS,
-        die=False, reseed=False, storage=storage, save_results=True,
+        die=False, reseed=True, storage=storage, save_results=True,
         continue_db=True, keep_db=True,
     )
 

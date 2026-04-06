@@ -406,6 +406,66 @@ class treatment_outcomes(ss.Analyzer):
             self.results[f'{prefix}_hivneg'][ti] = count(~hiv.infected[uids])
 
 
+class sw_prev_snapshot(ss.Analyzer):
+    """
+    Snapshot of syphilis and HIV prevalence by age, sex, and SW group at a target year.
+    Produces rows needed for sw_prev_df.df used in plot_fig1_epi.py and plot_stepdown.py.
+
+    Rows have columns: disease, age, sex, sw_group ('SW' or 'Overall'), prevalence, active_prevalence.
+    par_idx is added by save_sw_prev() in run_msim.py.
+    """
+    age_bins = [(15, 20), (20, 25), (25, 30), (30, 35), (35, 50), (50, 65)]
+
+    def __init__(self, year=2020, diseases=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = 'sw_prev_snapshot'
+        self.year = year
+        self.diseases = diseases or ['syph', 'hiv']
+        self.prev_data = []
+
+    def step(self):
+        if abs(self.sim.t.yearvec[self.ti] - self.year) < 0.5:
+            self._capture()
+
+    def _capture(self):
+        sim = self.sim
+        ppl = sim.people
+        nw = sim.networks.structuredsexual
+        alive = ppl.alive
+
+        for d_name in self.diseases:
+            dis = sim.diseases[d_name]
+            has_active = hasattr(dis, 'active')
+
+            for lo, hi in self.age_bins:
+                age_label = f'{lo}-{hi}'
+                in_age = alive & (ppl.age >= lo) & (ppl.age < hi)
+
+                for sex_label, sex_bool in [('Female', ppl.female), ('Male', ppl.male)]:
+                    base = in_age & sex_bool
+
+                    # Overall
+                    n_base = base.count()
+                    if n_base > 0:
+                        prev = float(np.mean(dis.infected[base]))
+                        active_prev = float(np.mean(dis.active[base])) if has_active else prev
+                        self.prev_data.append(dict(
+                            disease=d_name, age=age_label, sex=sex_label, sw_group='Overall',
+                            prevalence=prev, active_prevalence=active_prev,
+                        ))
+
+                    # SW: FSW for females, clients for males
+                    sw_mask = base & (nw.fsw if sex_label == 'Female' else nw.client)
+                    n_sw = sw_mask.count()
+                    if n_sw > 0:
+                        prev = float(np.mean(dis.infected[sw_mask]))
+                        active_prev = float(np.mean(dis.active[sw_mask])) if has_active else prev
+                        self.prev_data.append(dict(
+                            disease=d_name, age=age_label, sex=sex_label, sw_group='SW',
+                            prevalence=prev, active_prevalence=active_prev,
+                        ))
+
+
 class NetworkSnapshot(ss.Analyzer):
     """
     Capture a snapshot of network properties at a specified year.
@@ -552,6 +612,7 @@ def make_analyzers(extra_analyzers=None):
         sti.coinfection_stats('syph', 'hiv', disease1_infected_state_name='active', name='active_coinfection_stats'),
         epi_ts(),
         sti.sw_stats(diseases=['syph', 'hiv']),
+        sw_prev_snapshot(year=2016, diseases=['syph', 'hiv']),  # 2016 = ZIMPHIA survey year for panel A comparison
         syph_idalys(),
         transmission_by_stage(),
         treatment_outcomes(),

@@ -3,6 +3,7 @@ Utils and defaults
 """
 import sciris as sc
 import numpy as np
+import pandas as pd
 
 
 def set_font(size=None, font='Libertinus Sans'):
@@ -13,6 +14,48 @@ def set_font(size=None, font='Libertinus Sans'):
 
 percentile_pairs = [[.01, .99], [.1, .9], [.25, .75]]  # Order by wide to narrow (for alpha shading in plots)
 percentiles = [.5] + [percentile for percentile_pair in percentile_pairs for percentile in percentile_pair]
+
+
+SYPH_ALIVE_AFTER = 2015  # Require syphilis to have new infections after this year
+
+
+def check_sim_alive(sim):
+    """Check that syphilis and HIV are both sustained to the contemporary period.
+
+    Used by both calibration (as check_fn) and run_msim (post-run filter).
+    Syphilis must have new infections after SYPH_ALIVE_AFTER (default 2015) —
+    a year-based cutoff is robust to stop-year changes and prevents sims where
+    syphilis burns out historically from passing the filter.
+    HIV is checked over the last 60 timesteps (~5 years).
+    """
+    if sim is None:
+        return False
+    years = sim.t.yearvec
+    syph_ni = sim.results.syph.new_infections
+    if np.sum(syph_ni[years >= SYPH_ALIVE_AFTER]) == 0:
+        return False
+    if np.median(sim.results.hiv.prevalence_15_49[-60:]) < 0.05:
+        return False
+    return True
+
+
+def get_metric(df, metric, start_year=None, end_year=None):
+    """Return mean of metric across parsets for each year in [start_year, end_year]."""
+    time_col = next((c for c in ['timevec', 'year'] if c in df.columns), None)
+    if time_col is None:
+        # to_df() returns year as the index; promote it to a column
+        df = df.reset_index()
+        df.rename(columns={df.columns[0]: 'year'}, inplace=True)
+        time_col = 'year'
+    if pd.api.types.is_datetime64_any_dtype(df[time_col]):
+        df = df.copy()
+        df[time_col] = df[time_col].dt.year
+    sub = df
+    if start_year is not None:
+        sub = sub[sub[time_col] >= start_year]
+    if end_year is not None:
+        sub = sub[sub[time_col] <= end_year]
+    return sub.groupby(time_col)[metric].mean()
 
 
 def count(arr): return np.count_nonzero(arr)

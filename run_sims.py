@@ -1,5 +1,10 @@
 """
-Run syphilis-HIV coinfection model
+Core sim-building functions for the syphilis diagnostics Zimbabwe analysis.
+
+Provides:
+  - make_sim()        — construct a fully configured Sim for a given scenario
+  - load_calib_pars() — load calibrated parameter sets from disk
+  - LEGACY_PAR_RENAME — column rename map for old underscore-style calib cols
 """
 
 # %% Imports and settings
@@ -27,7 +32,7 @@ LEGACY_PAR_RENAME = {
 }
 
 
-def load_calib_pars(path=None, sort_by_force=True):
+def load_calib_pars(path=None, sort_by_force=True, n=None):
     """
     Load calibrated parameters, renaming legacy column names to dot notation.
 
@@ -46,11 +51,12 @@ def load_calib_pars(path=None, sort_by_force=True):
         if all(c is not None for c in [beta_col, rtp_col, eff_col]):
             df['eff_force'] = df[beta_col] * df[rtp_col] * (1 - df[eff_col])
             df = df.sort_values('eff_force', ascending=False).reset_index(drop=True)
+    if n is not None:
+        df = df.head(n)
     return df
-FIGURES_DIR = 'figures'
 
 
-def make_sim(scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyzers=None):
+def make_sim(scenario='soc', seed=1, start=1985, stop=2027, verbose=1/12, analyzers=None):
 
     # Network
     sexual = sti.StructuredSexual(
@@ -100,12 +106,7 @@ def make_sim(scenario='soc', seed=1, start=1985, stop=2031, verbose=1/12, analyz
 
 
 if __name__ == '__main__':
-
-    seed = 1
-    scenario = 'soc'
-
-    sim = make_sim(stop=2031, seed=seed, scenario=scenario)
+    # Quick smoke-test: build and run a single SOC sim to 2027
+    sim = make_sim(stop=2027, seed=1, scenario='soc')
     sim.run()
-
-    df = sim.to_df(resample='year', use_years=True, sep='.')
-    sc.saveobj(f'results/{scenario}_sim.df', df)
+    print(f'Final syphilis prevalence: {sim.results.syph.active_prevalence[-1]:.4f}')

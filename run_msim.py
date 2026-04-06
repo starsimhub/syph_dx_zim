@@ -23,35 +23,47 @@ os.environ.update(
     MKL_NUM_THREADS='1',
 )
 
-import numpy as np
 import sciris as sc
 import stisim as sti
 import pandas as pd
 from run_sims import make_sim, load_calib_pars
-from utils import percentiles
+from utils import percentiles, check_sim_alive
 
 LOCATION = 'zimbabwe'
 RESULTS_DIR = 'results'
 
 
-def check_syph_alive(sim):
-    """Check that syphilis didn't die out (same as calibration check_fn)."""
-    syph_ni = sim.results.syph.new_infections[-60:]  # Last 5 years
-    return float(np.sum(syph_ni)) > 0
+def _run_one_sim(pars_row, scenario, start, stop):
+    """Run a single sim replaying calibrated parameters.
+
+    Uses the rand_seed stored in pars_row, which is the Optuna-suggested seed
+    that was applied to the calibration sim via default_build_fn. Falls back
+    to seed=1 for legacy pars_df files that predate the reseed fix.
+    """
+    seed = int(pars_row.get('rand_seed', 1))
+    sim = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1, seed=seed)
+    sti.set_sim_pars(sim, pars_row)
+    sim.init()
+    sim.run()
+    sim.par_idx = int(pars_row.get('index', 0))
+    return sim
 
 
-def run_msim(n_pars=200, start=1985, stop=2026, scenario='soc'):
+def run_msim(n_pars=None, start=1985, stop=2027, scenario='soc', n_workers=None):
     """
-    Run top n_pars calibrated parameter sets.
-    No seed variation — each par set is a genuinely distinct fit.
+    Run all calibrated parameter sets.
+
+    Each parset is replayed with its stored rand_seed (the Optuna-suggested seed
+    applied during calibration via default_build_fn). n_pars=None uses all available
+    parameter sets.
     """
-    pars_df = load_calib_pars()
-    base = make_sim(scenario=scenario, start=start, stop=stop, verbose=-1)
-    msim = sti.make_calib_sims(
-        calib_pars=pars_df, sim=base, n_parsets=n_pars, check_fn=check_syph_alive,
-    )
-    print(f'Kept {len(msim.sims)} sims')
-    return msim.sims
+    pars_df = load_calib_pars(n=n_pars)
+    print(f'Running {len(pars_df)} parameter sets (using stored rand_seed per parset)')
+    args = [(row.to_dict(), scenario, start, stop) for _, row in pars_df.iterrows()]
+    sims = sc.parallelize(_run_one_sim, args, parallelizer='multiprocess', ncpus=n_workers)
+    sims = [s for s in sims if check_sim_alive(s)]
+    print(f'Kept {len(sims)}/{len(pars_df)} sims (syph+HIV sustained)')
+    return sims
 
 
 def prune_columns(df):
@@ -107,27 +119,28 @@ def prune_columns(df):
     return df[keep]
 
 
+def _sim_to_df(sim):
+    """Extract and prune a single sim's results. Used by save_results for parallel processing."""
+    df = sim.to_df(resample='year', use_years=True, sep='.')
+    df = prune_columns(df)
+    df['par_idx'] = sim.par_idx
+    return df
+
+
 def save_results(sims):
     """
     Generate percentile statistics and save.
     Uses sim.to_df() then prunes to ~100 columns used by plot scripts.
+    Parallelises the per-sim to_df/prune step across all available CPUs.
     """
     print('Generating results from sims...')
 
-    dfs = sc.autolist()
-    for i, sim in enumerate(sims):
-        df = sim.to_df(resample='year', use_years=True, sep='.')
-        df = prune_columns(df)
-        df['par_idx'] = sim.par_idx
-        dfs += df
-        if (i + 1) % 50 == 0:
-            print(f'  Processed {i + 1}/{len(sims)} sims')
-
+    dfs = sc.parallelize(_sim_to_df, sims, parallelizer='thread')
     resdf = pd.concat(dfs)
     print(f'  Combined DataFrame: {len(resdf)} rows, {len(resdf.columns)} columns')
 
     # Generate percentile statistics grouped by year
-    cs = resdf.groupby(resdf.time).describe(percentiles=percentiles)
+    cs = resdf.groupby(resdf.timevec).describe(percentiles=percentiles)
     sc.saveobj(f'{RESULTS_DIR}/{LOCATION}_calib_stats_all.df', cs)
     print(f'Saved {RESULTS_DIR}/{LOCATION}_calib_stats_all.df')
 
@@ -138,12 +151,12 @@ def save_results(sims):
 
 
 def save_sw_prev(sims):
-    """Extract SW prevalence snapshots — these are stored per-sim, not in to_df()"""
+    """Extract SW prevalence snapshots from sw_prev_snapshot analyzer."""
     all_prev = []
     for sim in sims:
-        sw = sim.analyzers.get('sw_stats')
-        if sw is not None and hasattr(sw, 'prev_data') and sw.prev_data is not None:
-            for row in sw.prev_data:
+        snap = sim.analyzers.get('sw_prev_snapshot')
+        if snap is not None and snap.prev_data:
+            for row in snap.prev_data:
                 row = dict(row)
                 row['par_idx'] = sim.par_idx
                 all_prev.append(row)
@@ -152,12 +165,14 @@ def save_sw_prev(sims):
         sw_prev_df = pd.DataFrame(all_prev)
         sc.saveobj(f'{RESULTS_DIR}/sw_prev_df.df', sw_prev_df)
         print(f'Saved {RESULTS_DIR}/sw_prev_df.df ({len(sw_prev_df)} rows)')
+    else:
+        print('WARNING: No sw_prev data found — sw_prev_df.df not saved')
 
 
 if __name__ == '__main__':
 
-    n_pars = 200
-    stop = 2026
+    n_pars = 200  # 10% of 2000 calibration trials; load_calib_pars caps at available if fewer survive
+    stop = 2027
 
     sims = run_msim(n_pars=n_pars, stop=stop)
 
